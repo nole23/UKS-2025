@@ -1,0 +1,78 @@
+name: CI/CD - Django, Angular, and Proxy
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the code from GitHub
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Set up Python and install dependencies for Django
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+          
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Build the Django app (make migrations, collect static files, etc.)
+      - name: Build Django
+        run: |
+          python manage.py makemigrations
+          python manage.py migrate
+          python manage.py collectstatic --noinput
+
+      # Run Unit Tests for Django if they exist
+      - name: Run Django unit tests
+        run: |
+          python manage.py test
+
+      # Set up Node.js and install dependencies for Angular
+      - name: Set up Node.js for Angular
+        uses: actions/setup-node@v2
+        with:
+          node-version: '22'  # Change as needed for Angular 22
+
+      - name: Install Angular dependencies
+        run: |
+          npm install
+
+      # Build Angular application
+      - name: Build Angular
+        run: |
+          npm run build --prod
+
+      # Run Unit Tests for Angular if they exist
+      - name: Run Angular unit tests
+        run: |
+          npm run test -- --watch=false
+
+      # Run Angular end-to-end tests (AT) if they exist
+      - name: Run Angular E2E tests
+        run: |
+          npm run e2e -- --headless
+
+      # Optional: If needed, generate ngx reverse proxy config (adjust as necessary)
+      - name: Generate ngx reverse proxy config
+        run: |
+          # Command to generate reverse proxy config (replace with actual command if needed)
+          echo "Generating ngx reverse proxy config..."
+          # Example: `nginx -c /path/to/nginx.conf`
+          touch /tmp/nginx.conf
+
+      # If all tests and builds succeed, proceed to Docker build or deploy (if needed)
+      - name: Docker Build (Optional)
+        run: |
+          docker build -t my-image:latest .
+          docker push my-image:latest
