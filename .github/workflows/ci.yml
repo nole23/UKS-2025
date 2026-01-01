@@ -21,33 +21,36 @@ jobs:
 
       - name: Install dependencies for Django
         run: |
+          # Navigiraj u Django aplikaciju
+          cd uks-server/uks
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Django build and unit tests
+      - name: Run Django migrations and unit tests
         run: |
+          cd uks-server/uks  # Navigiraj do Django aplikacije
           python manage.py migrate
           python manage.py test
 
       - name: Set up Node.js for Angular
         uses: actions/setup-node@v2
         with:
-          node-version: '22'
+          node-version: '14'  # Preporučena verzija Node.js za Angular, možeš promeniti ako je potrebno
 
       - name: Install dependencies for Angular
         run: |
-          cd angular-project-folder
+          cd angular-project-folder  # Prebaci se u direktorijum gde je Angular projekat
           npm install
 
       - name: Build Angular app
         run: |
-          cd angular-project-folder
+          cd angular-project-folder  # Prebaci se u direktorijum gde je Angular projekat
           ng build --prod  # Build pre testiranja
 
       - name: Run Angular unit tests
         run: |
-          cd angular-project-folder
-          ng test --watch=false
+          cd angular-project-folder  # Prebaci se u direktorijum gde je Angular projekat
+          ng test --watch=false  # Pokreni Angular unit testove
 
       - name: Run Acceptance Tests (AT)
         run: |
