@@ -22,7 +22,6 @@ jobs:
       - name: Install dependencies for Django
         run: |
           # Navigiraj u Django aplikaciju
-          cd uks-server/uks
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
