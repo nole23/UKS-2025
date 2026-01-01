@@ -6,7 +6,45 @@ on:
       - develop  # Pokreće workflow kada neko otvori PR prema develop grani
 
 jobs:
-  build:
+  client-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22.20.0'
+
+      - name: Install dependencies for Angular client
+        run: |
+          cd client
+          npm install --legacy-peer-deps
+
+      - name: Install Google Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt install ./google-chrome-stable_current_amd64.deb
+
+      - name: Set Chrome path
+        run: echo "CHROME_BIN=/usr/bin/google-chrome" >> $GITHUB_ENV
+
+      - name: Build Angular client
+        run: |
+          cd client
+          npm run build --prod
+
+      - name: Test Angular client
+        run: |
+          cd client
+          npm run test -- --watch=false --browsers=ChromeHeadless
+
+  server-build:
+    needs: client-build
     runs-on: ubuntu-latest
     timeout-minutes: 30  # Timeout za build job
 
@@ -17,60 +55,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.9'
+          python-version: '3.12.8'
 
       - name: Install dependencies for Django
         run: |
-          # Navigiraj u Django aplikaciju
-          python -m pip install --upgrade pip
+          cd uks-server
+          python -m venv venv
+          source venv/bin/activate
           pip install -r requirements.txt
 
       - name: Run Django migrations and unit tests
         run: |
-          cd uks-server/uks  # Navigiraj do Django aplikacije
-          python manage.py migrate
+          cd uks-server
+          source venv/bin/activate
+          python manage.py migrate --noinput
           python manage.py test
-
-      - name: Set up Node.js for Angular
-        uses: actions/setup-node@v2
-        with:
-          node-version: '14'  # Preporučena verzija Node.js za Angular, možeš promeniti ako je potrebno
-
-      - name: Install dependencies for Angular
-        run: |
-          cd angular-project-folder  # Prebaci se u direktorijum gde je Angular projekat
-          npm install
-
-      - name: Build Angular app
-        run: |
-          cd angular-project-folder  # Prebaci se u direktorijum gde je Angular projekat
-          ng build --prod  # Build pre testiranja
-
-      - name: Run Angular unit tests
-        run: |
-          cd angular-project-folder  # Prebaci se u direktorijum gde je Angular projekat
-          ng test --watch=false  # Pokreni Angular unit testove
-
-      - name: Run Acceptance Tests (AT)
-        run: |
-          # Dodaj ovde komande za pokretanje Acceptance Testova
-          echo "Running Acceptance Tests..."
-
-      - name: Push results to GitHub if tests pass
-        if: success() 
-        run: echo "All tests passed, ready to merge!"
-
-  code_review:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Check if PR is ready for merge
-        run: |
-          # Možeš da koristiš GitHub API ili GitHub CLI za proveru statusa PR-a
-          echo "Waiting for code review..."
-
-      - name: Merge the PR automatically
-        if: success() && github.event.pull_request.reviewers[0].approved == true
-        run: |
-          echo "Merge is allowed, merging the PR..."
-          gh pr merge ${{ github.event.pull_request.number }} --merge
