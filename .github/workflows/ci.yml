@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies for Angular client
         run: |
-          cd client
+          cd uks-client
           npm install --legacy-peer-deps
 
       - name: Install Google Chrome
@@ -35,12 +35,12 @@ jobs:
 
       - name: Build Angular client
         run: |
-          cd client
+          cd uks-client
           npm run build --prod
 
       - name: Test Angular client
         run: |
-          cd client
+          cd uks-client
           npm run test -- --watch=false --browsers=ChromeHeadless
 
   server-build:
