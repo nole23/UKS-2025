@@ -1,0 +1,77 @@
+name: CI Workflow - Feature to Develop
+
+on:
+  pull_request:
+    branches:
+      - develop  # Pokreće workflow kada neko otvori PR prema develop grani
+
+jobs:
+    client-build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v3
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                node-version: '22.20.0'
+
+            - name: Install dependencies for Angular client
+              run: |
+                cd uks-client
+                npm install --legacy-peer-deps
+
+            - name: Install Google Chrome
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y wget
+                wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+                sudo apt install ./google-chrome-stable_current_amd64.deb
+
+            - name: Set Chrome path
+              run: echo "CHROME_BIN=/usr/bin/google-chrome" >> $GITHUB_ENV
+
+            - name: Build Angular client
+              run: |
+                cd uks-client
+                npm run build --prod
+
+            - name: Test Angular client
+              run: |
+                cd uks-client
+                npm run test -- --watch=false --browsers=ChromeHeadless
+            
+            - name: Run E2E Tests for client
+              run: |
+                cd uks-client
+                npm run e2e -- --headless --wathc=false
+
+    server-build:
+        needs: client-build
+        runs-on: ubuntu-latest
+        timeout-minutes: 30  # Timeout za build job
+
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v3
+
+          - name: Set up Python
+            uses: actions/setup-python@v2
+            with:
+                python-version: '3.12.8'
+
+          - name: Install dependencies for Django
+            run: |
+                cd uks-server
+                python -m venv venv
+                source venv/bin/activate
+                pip install -r requirements.txt
+
+          - name: Run Django migrations and unit tests
+            run: |
+                cd uks-server
+                source venv/bin/activate
+                python manage.py migrate --noinput
+                python manage.py test
