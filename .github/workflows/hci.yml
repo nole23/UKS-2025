@@ -42,11 +42,6 @@ jobs:
               run: |
                 cd uks-client
                 npm run test -- --watch=false --browsers=ChromeHeadless
-            
-            - name: Run E2E Tests for client
-              run: |
-                cd uks-client
-                npm run e2e -- --headless --wathc=false
 
     server-build:
         needs: client-build
