@@ -1,0 +1,384 @@
+From d52e30c9b30da46177e70b9deddfef333cf80743 Mon Sep 17 00:00:00 2001
+From: nole23 <nole0223@gmail.com>
+Date: Sun, 18 Jan 2026 14:21:39 +0100
+Subject: [PATCH] Test 1
+
+---
+ .github/workflows/ci.yml    | 26 ++++++++----
+ .github/workflows/hci.yml   |  3 ++
+ docker-compose.yml          | 80 +++++++++++++++++++++++++++++++++++++
+ uks-client/Dockerfile       | 10 +++++
+ uks-client/angular.json     |  3 +-
+ uks-nginx/Dockerfile        |  7 ++++
+ uks-nginx/default.conf      | 34 ++++++++++++++++
+ uks-nginx/nginx.conf        | 34 ++++++++++++++++
+ uks-server/Dockerfile       | 20 ++++++++++
+ uks-server/requirements.txt |  3 ++
+ uks-server/uks/settings.py  | 26 +++++++++---
+ version.txt                 |  1 +
+ 12 files changed, 234 insertions(+), 13 deletions(-)
+ create mode 100644 docker-compose.yml
+ create mode 100644 uks-client/Dockerfile
+ create mode 100644 uks-nginx/Dockerfile
+ create mode 100644 uks-nginx/default.conf
+ create mode 100644 uks-nginx/nginx.conf
+ create mode 100644 uks-server/Dockerfile
+ create mode 100644 version.txt
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 700a858..9d021be 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -13,17 +13,29 @@ jobs:
+     runs-on: ubuntu-latest
+ 
+     env:
+-      RELEASE_TAG: latest  # Inicijalizuješ RELEASE_TAG sa "latest", možeš kasnije menjati
++      RELEASE_TAG: latest  # Po specifikaciji, verzije nisu potrebne
+ 
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@v3
+ 
+-      - name: Set up Docker Build
++      - name: Log in to Docker Hub
++        uses: docker/login-action@v3
++        with:
++          username: ${{ secrets.DOCKERHUB_USERNAME }}
++          password: ${{ secrets.DOCKERHUB_TOKEN }}
++
++      - name: Build and push Django server image
++        run: |
++          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:latest ./uks-server
++          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:latest
++
++      - name: Build and push Angular client image
+         run: |
+-          docker build -t myapp:latest .
+-          
+-      - name: Push Docker Image to Docker Hub
++          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-client:latest ./uks-client
++          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-client:latest
++
++      - name: Build and push Nginx image
+         run: |
+-          docker tag myapp:latest mydockerhubuser/myapp:latest
+-          docker push mydockerhubuser/myapp:latest  # Pushing Docker image to Docker Hub
++          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest ./nginx
++          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest
+diff --git a/.github/workflows/hci.yml b/.github/workflows/hci.yml
+index be4ea34..46c8920 100644
+--- a/.github/workflows/hci.yml
++++ b/.github/workflows/hci.yml
+@@ -48,6 +48,9 @@ jobs:
+         runs-on: ubuntu-latest
+         timeout-minutes: 30  # Timeout za build job
+ 
++        env:
++          UKS_TEST_DB: ON
++
+         steps:
+           - name: Checkout code
+             uses: actions/checkout@v3
+diff --git a/docker-compose.yml b/docker-compose.yml
+new file mode 100644
+index 0000000..28bb976
+--- /dev/null
++++ b/docker-compose.yml
+@@ -0,0 +1,80 @@
++version: '3.9'
++
++services:
++  db:
++    image: postgres:13
++    container_name: postgres-db
++    environment:
++      POSTGRES_DB: uks
++      POSTGRES_USER: postgres
++      POSTGRES_PASSWORD: 123456789
++    volumes:
++      - db-data:/var/lib/postgresql/data
++    networks:
++      - mynetwork
++    healthcheck:
++      test: ["CMD-SHELL", "pg_isready -U postgres"]
++      interval: 5s
++      timeout: 5s
++      retries: 5
++
++  redis:
++    image: redis:7
++    container_name: redis-cache
++    networks:
++      - mynetwork
++
++  web:
++    build:
++      context: ./uks-server
++    container_name: django-web
++    command: >
++      sh -c "
++      python manage.py migrate &&
++      gunicorn uks.wsgi:application --bind 0.0.0.0:8000
++      "
++    environment:
++      DATABASE_ENGINE: django.db.backends.postgresql
++      DATABASE_NAME: uks
++      DATABASE_USER: postgres
++      DATABASE_PASSWORD: 123456789
++      DATABASE_HOST: db
++      DATABASE_PORT: 5432
++    volumes:
++      - ./uks-server:/app
++    depends_on:
++      db:
++        condition: service_healthy
++      redis:
++        condition: service_started
++    networks:
++      - mynetwork
++
++  client:
++    build:
++      context: ./uks-client
++    container_name: angular-client
++    volumes:
++      - ./uks-client/dist:/dist
++    networks:
++      - mynetwork
++
++  nginx:
++    build:
++      context: ./uks-nginx
++    volumes:
++      - ./uks-client/dist:/usr/share/nginx/html
++    container_name: nginx-proxy
++    depends_on:
++      - web
++    ports:
++      - "80:80"
++    networks:
++      - mynetwork
++
++volumes:
++  db-data:
++
++networks:
++  mynetwork:
++    driver: bridge
+diff --git a/uks-client/Dockerfile b/uks-client/Dockerfile
+new file mode 100644
+index 0000000..78535f1
+--- /dev/null
++++ b/uks-client/Dockerfile
+@@ -0,0 +1,10 @@
++FROM node:22
++WORKDIR /app
++
++COPY package.json package-lock.json ./
++RUN npm install
++
++COPY . .
++
++EXPOSE 4200
++CMD ["npm", "start", "--", "--host", "0.0.0.0"]
+diff --git a/uks-client/angular.json b/uks-client/angular.json
+index a7f4d91..762cdb6 100644
+--- a/uks-client/angular.json
++++ b/uks-client/angular.json
+@@ -31,7 +31,8 @@
+             ],
+             "styles": [
+               "src/styles.scss"
+-            ]
++            ],
++            "outputPath": "dist"
+           },
+           "configurations": {
+             "production": {
+diff --git a/uks-nginx/Dockerfile b/uks-nginx/Dockerfile
+new file mode 100644
+index 0000000..7dd548f
+--- /dev/null
++++ b/uks-nginx/Dockerfile
+@@ -0,0 +1,7 @@
++FROM nginx:alpine
++
++# Kopiraj samo server blok u conf.d
++COPY nginx.conf /etc/nginx/conf.d/default.conf
++
++EXPOSE 80
++CMD ["nginx", "-g", "daemon off;"]
+diff --git a/uks-nginx/default.conf b/uks-nginx/default.conf
+new file mode 100644
+index 0000000..72db75d
+--- /dev/null
++++ b/uks-nginx/default.conf
+@@ -0,0 +1,34 @@
++server {
++    listen 80;
++    server_name localhost;
++
++    # Angular frontend
++    location / {
++        proxy_pass http://client:4200/;
++        proxy_set_header Host $host;
++        proxy_set_header X-Real-IP $remote_addr;
++        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto $scheme;
++    }
++
++    # Django backend
++    location /uks-server/ {
++        proxy_pass http://web:8000;
++        proxy_set_header Host $host;
++        proxy_set_header X-Real-IP $remote_addr;
++        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto $scheme;
++
++        add_header Access-Control-Allow-Origin *;
++        add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS';
++        add_header Access-Control-Allow-Headers 'Origin, Content-Type, Accept, Authorization';
++        add_header Access-Control-Allow-Credentials true;
++
++        if ($request_method = 'OPTIONS') {
++            add_header Access-Control-Max-Age 1728000;
++            add_header Content-Type 'text/plain charset=UTF-8';
++            add_header Content-Length 0;
++            return 204;
++        }
++    }
++}
+diff --git a/uks-nginx/nginx.conf b/uks-nginx/nginx.conf
+new file mode 100644
+index 0000000..72db75d
+--- /dev/null
++++ b/uks-nginx/nginx.conf
+@@ -0,0 +1,34 @@
++server {
++    listen 80;
++    server_name localhost;
++
++    # Angular frontend
++    location / {
++        proxy_pass http://client:4200/;
++        proxy_set_header Host $host;
++        proxy_set_header X-Real-IP $remote_addr;
++        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto $scheme;
++    }
++
++    # Django backend
++    location /uks-server/ {
++        proxy_pass http://web:8000;
++        proxy_set_header Host $host;
++        proxy_set_header X-Real-IP $remote_addr;
++        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto $scheme;
++
++        add_header Access-Control-Allow-Origin *;
++        add_header Access-Control-Allow-Methods 'GET, POST, PUT, DELETE, OPTIONS';
++        add_header Access-Control-Allow-Headers 'Origin, Content-Type, Accept, Authorization';
++        add_header Access-Control-Allow-Credentials true;
++
++        if ($request_method = 'OPTIONS') {
++            add_header Access-Control-Max-Age 1728000;
++            add_header Content-Type 'text/plain charset=UTF-8';
++            add_header Content-Length 0;
++            return 204;
++        }
++    }
++}
+diff --git a/uks-server/Dockerfile b/uks-server/Dockerfile
+new file mode 100644
+index 0000000..d1f22ea
+--- /dev/null
++++ b/uks-server/Dockerfile
+@@ -0,0 +1,20 @@
++# Koristi službenu Python sliku
++FROM python:3.12-slim
++
++# Set environment variables
++ENV PYTHONUNBUFFERED=1
++
++# Postavi radni direktorijum
++WORKDIR /app
++
++# Kopiraj requirements i instaliraj zavisnosti
++COPY requirements.txt /app/
++RUN pip install --no-cache-dir -r requirements.txt
++
++# Kopiraj ostatak Django projekta
++COPY . /app/
++
++# Expose port na kojem Django/Gunicorn radi
++EXPOSE 8000
++
++# CMD je preuzet iz docker-compose.yml, ovdje ga ne moramo stavljati
+diff --git a/uks-server/requirements.txt b/uks-server/requirements.txt
+index 9328ff7..15a1749 100644
+--- a/uks-server/requirements.txt
++++ b/uks-server/requirements.txt
+@@ -3,3 +3,6 @@ asgiref==3.11.0
+ sqlparse==0.5.5
+ tzdata==2025.3
+ djangorestframework==3.16.1
++python-decouple==3.8
++psycopg2-binary
++gunicorn==20.1.0
+diff --git a/uks-server/uks/settings.py b/uks-server/uks/settings.py
+index 89262ae..45b4395 100644
+--- a/uks-server/uks/settings.py
++++ b/uks-server/uks/settings.py
+@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
+ """
+ 
+ from pathlib import Path
++from decouple import config
+ 
+ # Build paths inside the project like this: BASE_DIR / 'subdir'.
+ BASE_DIR = Path(__file__).resolve().parent.parent
+@@ -73,12 +74,27 @@ WSGI_APPLICATION = 'uks.wsgi.application'
+ # Database
+ # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+ 
+-DATABASES = {
+-    'default': {
+-        'ENGINE': 'django.db.backends.sqlite3',
+-        'NAME': BASE_DIR / 'db.sqlite3',
++UKS_TEST_DB = config('UKS_TEST_DB', default='OFF')
++
++if UKS_TEST_DB == 'ON':
++    DATABASES = {
++        'default': {
++            'ENGINE': 'django.db.backends.sqlite3',
++            'NAME': BASE_DIR / 'db.sqlite3',
++        }
++    }
++else:
++    DATABASES = {
++        'default': {
++            'ENGINE': config('DATABASE_ENGINE'),
++            'NAME': config('DATABASE_NAME'),
++            'USER': config('DATABASE_USER'),
++            'PASSWORD': config('DATABASE_PASSWORD'),
++            'HOST': config('DATABASE_HOST'),
++            'PORT': config('DATABASE_PORT'),
++        }
+     }
+-}
++
+ 
+ 
+ # Password validation
+diff --git a/version.txt b/version.txt
+new file mode 100644
+index 0000000..afaf360
+--- /dev/null
++++ b/version.txt
+@@ -0,0 +1 @@
++1.0.0
+\ No newline at end of file
+-- 
+2.43.0.windows.1
+
