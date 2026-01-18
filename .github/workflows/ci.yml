@@ -37,5 +37,5 @@ jobs:
 
       - name: Build and push Nginx image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest ./nginx
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest ./uks-nginx
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest
