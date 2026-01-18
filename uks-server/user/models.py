@@ -1,7 +1,7 @@
-from django.contrib.auth.models import Permission
+from django.contrib.auth.models import Permission, AbstractUser
 from django.db import models
 
-class User(models.Model):
+class User(AbstractUser):
     """
     Extends Django built-in user.
     """
