@@ -1,0 +1,80 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:13
+    container_name: postgres-db
+    environment:
+      POSTGRES_DB: uks
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456789
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - mynetwork
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: redis-cache
+    networks:
+      - mynetwork
+
+  web:
+    build:
+      context: ./uks-server
+    container_name: django-web
+    command: >
+      sh -c "
+      python manage.py migrate &&
+      gunicorn uks.wsgi:application --bind 0.0.0.0:8000
+      "
+    environment:
+      DATABASE_ENGINE: django.db.backends.postgresql
+      DATABASE_NAME: uks
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: 123456789
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    volumes:
+      - ./uks-server:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - mynetwork
+
+  client:
+    build:
+      context: ./uks-client
+    container_name: angular-client
+    volumes:
+      - ./uks-client/dist:/dist
+    networks:
+      - mynetwork
+
+  nginx:
+    build:
+      context: ./uks-nginx
+    volumes:
+      - ./uks-client/dist:/usr/share/nginx/html
+    container_name: nginx-proxy
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+    networks:
+      - mynetwork
+
+volumes:
+  db-data:
+
+networks:
+  mynetwork:
+    driver: bridge
