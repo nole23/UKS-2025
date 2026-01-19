@@ -1,8 +1,8 @@
+# repository/models.py
 from django.db import models
 from user.models import User
 from Organization.models import Organization
 
-# Create your models here.
 class Repository(models.Model):
     VISIBILITY_CHOICES = (
         ("public", "Public"),
@@ -14,18 +14,20 @@ class Repository(models.Model):
     visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    # owns: User → Repository (1 : *)
     owner = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name="repositories"
+        related_name="repositories",
+        null=True,      # dozvoljava NULL
+        blank=True      # dozvoljava prazno u admin i formama
     )
 
-    # contains: Organization → Repository (1 : *)
     organization = models.ForeignKey(
         Organization,
         on_delete=models.CASCADE,
-        related_name="repositories"
+        related_name="repositories",
+        null=True,      # dozvoljava NULL
+        blank=True      # dozvoljava prazno u admin i formama
     )
 
     def __str__(self):
