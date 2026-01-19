@@ -1,1 +1,86 @@
-<p>home works!</p>
+<div class="container home-container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <h1>UKS Hub</h1>
+    <div class="user-info">
+      <span>Logged in as: {{username.username}}</span>
+      <button (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  <!-- SEARCH & NEW PROJECT -->
+  <section class="project-controls">
+    <input
+      type="text"
+      placeholder="Search repositories..."
+      [(ngModel)]="searchQuery"
+      (keyup.enter)="search()"
+    />
+    <button (click)="search()" [disabled]="isLoading">
+      @if (!isLoading) {
+        <span>Search</span>
+      }
+      @if (isLoading) {
+        <span class="spinner"></span>
+      }
+    </button>
+    <button class="btn-new" (click)="openNewProjectModal()">+ New Repository</button>
+  </section>
+
+  <!-- PROJECT LIST -->
+  <section class="project-list">
+    <div *ngIf="projects.length === 0 && !isLoading" class="no-projects">
+      No repositories found.
+    </div>
+
+    @if (projects.length > 0) {
+      <table class="projects-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Last Updated</th>
+            <th>Visibility</th>
+            <th>Owner</th>
+            <th>Organization</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (repo of projects; track repo) {
+            <tr>
+              <td>{{repo.name}}</td>
+              <td>{{repo.created_at | date:'short'}}</td>
+              <td>
+                <span class="visibility" [ngClass]="repo.visibility">{{repo.visibility}}</span>
+              </td>
+              <td>{{repo.owner_username}}</td>
+              <td>{{repo.organization_name || '-'}}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+
+    @if (isLoading) {
+      <div class="loading-msg">
+        Loading repositories...
+      </div>
+    }
+    
+  </section>
+
+  <!-- QUICK LINKS -->
+  <section class="quick-links">
+    <h3>Quick Links</h3>
+    <ul>
+      <li><a routerLink="/new-repo">Create New Repository</a></li>
+      <li><a routerLink="/my-repos">My Repositories</a></li>
+      <li><a routerLink="/docker-info">Docker Info</a></li>
+    </ul>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>UKS Hub © 2026 | Student Project</p>
+  </footer>
+</div>

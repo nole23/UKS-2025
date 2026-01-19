@@ -3,6 +3,7 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-register',
@@ -16,6 +17,7 @@ export class RegisterComponent {
   message = '';
   isError = false;
   isLoading = false;
+  private apiUrl = environment.apiUrl;
 
   constructor(private fb: FormBuilder, private http: HttpClient, private router: Router) {
     this.registerForm = this.fb.group({
@@ -32,7 +34,7 @@ export class RegisterComponent {
     if (this.registerForm.invalid) return;
 
     this.isLoading = true;
-    this.http.post<any>('http://localhost:8000/api/register/', this.registerForm.value, { withCredentials: true })
+    this.http.post<any>(this.apiUrl + 'register/', this.registerForm.value, { withCredentials: true })
       .subscribe({
         next: (res) => {
           this.message = res.message;

@@ -17,9 +17,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from user.views import UserRegistrationView, MyTokenObtainPairView
+from repository.views import RepositoryListView, RepositorySearchView, DockerInfoView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/register/', UserRegistrationView.as_view(), name='register'),
     path('api/login/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path("api/repositories", RepositoryListView.as_view(), name='repository-list'),
+    path("api/repositories/search", RepositorySearchView.as_view(), name='repository-search'),
+    path("api/docker/info", DockerInfoView.as_view()),
 ]

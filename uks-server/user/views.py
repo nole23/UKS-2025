@@ -62,6 +62,23 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['username'] = user.username
         return token
 
+    def validate(self, attrs):
+        # ovo vraća standardni response sa access i refresh tokenom
+        data = super().validate(attrs)
+
+        # dodajemo dodatne informacije o useru u response
+        data['user'] = {
+            'id': self.user.id,
+            'username': self.user.username,
+            'email': self.user.email,
+            'first_name': self.user.first_name,
+            'last_name': self.user.last_name,
+            # 'organization': self.user.organization.name,
+            # po želji dodati još info
+        }
+        return data
+
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
     permission_classes = [AllowAny]  # <-- ovo omogućava pristup svima
+    
