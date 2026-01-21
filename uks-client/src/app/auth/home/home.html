@@ -3,9 +3,19 @@
   <!-- HEADER -->
   <header class="header">
     <h1>UKS Hub</h1>
+    
     <div class="user-info">
-      <span>Logged in as: {{username.username}}</span>
-      <button (click)="logout()">Logout</button>
+      <!-- Avatar Button -->
+      <div class="avatar-dropdown" (click)="toggleDropdown()">
+        <span class="avatar-letter">{{ username.username.charAt(0).toUpperCase() }}</span>
+        <div class="dropdown-menu" [class.show]="dropdownOpen">
+          <a routerLink="/home">My Profile</a>
+          <a routerLink="/account-settings">Account Settings</a>
+          <div class="logout">
+            <a (click)="logout()">Sing out</a>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 

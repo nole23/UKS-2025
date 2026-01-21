@@ -12,11 +12,12 @@ import { FormsModule } from '@angular/forms';
   styleUrl: './home.scss',
 })
 export class AuthHomeComponent implements OnInit{
- projects: any[] = [];
+  projects: any[] = [];
   searchQuery: string = '';
   username: any = '';
   message: string = '';
   isLoading: boolean = false;
+  dropdownOpen = false;
 
   constructor(
     private projectService: ProjectService,
@@ -27,8 +28,11 @@ export class AuthHomeComponent implements OnInit{
   ngOnInit(): void {
     // Uzmi username logovanog korisnika
     this.username = this.authService.getUsername();
-    console.log(this.username)
     this.loadProjects();
+  }
+
+  toggleDropdown() {
+    this.dropdownOpen = !this.dropdownOpen;
   }
 
   loadProjects(): void {

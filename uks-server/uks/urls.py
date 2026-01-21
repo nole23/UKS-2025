@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from user.views import UserRegistrationView, MyTokenObtainPairView
+from user.views import UserRegistrationView, MyTokenObtainPairView, UserProfileDetailView, PersonalTokenListView, UserProfileUpdateView, PersonalTokenCreateView, UserEmailUpdateView, UserPasswordChangeView
 from repository.views import RepositoryListView, RepositorySearchView, DockerInfoView
 
 urlpatterns = [
@@ -26,4 +26,10 @@ urlpatterns = [
     path("api/repositories", RepositoryListView.as_view(), name='repository-list'),
     path("api/repositories/search", RepositorySearchView.as_view(), name='repository-search'),
     path("api/docker/info", DockerInfoView.as_view()),
+    path('api/profile/', UserProfileDetailView.as_view(), name='profile-detail'),
+    path('api/profile/update/', UserProfileUpdateView.as_view(), name='profile-update'),
+    path('api/profile/email/', UserEmailUpdateView.as_view(), name='profile-email-update'),
+    path('api/profile/password/', UserPasswordChangeView.as_view(), name='profile-password-change'),
+    path('api/personal-tokens/', PersonalTokenCreateView.as_view(), name='personal-tokens'),
+    path('api/personal-tokens/list/', PersonalTokenListView.as_view(), name='personal-tokens-list'),
 ]

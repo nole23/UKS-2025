@@ -99,3 +99,20 @@ button:disabled {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+
+.avatar-letter {
+  background-color: #007bff;
+  color: #fff;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  font-weight: bold;
+  text-transform: uppercase;
+  -webkit-user-select: none;
+  user-select: none;
+  font-size: 21px;
+}

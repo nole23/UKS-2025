@@ -8,3 +8,4 @@ psycopg2-binary
 gunicorn==20.1.0
 djangorestframework_simplejwt
 django-cors-headers
+Pillow

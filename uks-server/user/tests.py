@@ -1,10 +1,18 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
-from user.models import User
-from user.serializers import UserRegistrationSerializer
+from .models import User
+from .serializers import UserRegistrationSerializer
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
+from unittest.mock import MagicMock, patch
+from .views import (
+    UserProfileDetailView,
+    UserProfileUpdateView,
+    UserEmailUpdateView,
+    UserPasswordChangeView,
+    PersonalTokenCreateView,
+)
 
 
 class UserAuthTests(APITestCase):
@@ -113,3 +121,219 @@ class UserRegistrationSerializerTest(TestCase):
         with self.assertRaises(ValidationError) as context:
             serializer.is_valid(raise_exception=True)
         self.assertIn("password", context.exception.detail)
+
+
+
+# --------------------------
+# UserProfileDetailView Tests
+# --------------------------
+class UserProfileDetailViewTests(TestCase):
+
+    def test_get_object_positive(self):
+        mock_user = MagicMock()
+        mock_profile = MagicMock()
+        mock_user.profile = mock_profile
+
+        request = MagicMock()
+        request.user = mock_user
+
+        view = UserProfileDetailView()
+        view.request = request
+        obj = view.get_object()
+
+        self.assertEqual(obj, mock_profile)
+
+    def test_get_object_negative(self):
+        mock_user = MagicMock()
+        mock_user.profile = None
+
+        request = MagicMock()
+        request.user = mock_user
+
+        view = UserProfileDetailView()
+        view.request = request
+        obj = view.get_object()
+
+        self.assertIsNone(obj)
+
+
+# --------------------------
+# UserProfileUpdateView Tests
+# --------------------------
+class UserProfileUpdateViewTests(TestCase):
+
+    @patch("user.views.UserProfileUpdateSerializer")
+    def test_update_profile_positive(self, mock_serializer_class):
+        mock_user = MagicMock()
+        mock_profile = MagicMock()
+        mock_user.profile = mock_profile
+
+        request = MagicMock()
+        request.user = mock_user
+        request.data = {"first_name": "John"}
+
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.return_value = True
+        mock_serializer.save.return_value = None
+        mock_serializer_class.return_value = mock_serializer
+
+        view = UserProfileUpdateView()
+        view.request = request
+        obj = view.get_object()
+        serializer = mock_serializer_class(obj, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        self.assertTrue(serializer.is_valid.called)
+        serializer.save.assert_called_once()
+
+    @patch("user.views.UserProfileUpdateSerializer")
+    def test_update_profile_negative(self, mock_serializer_class):
+        mock_user = MagicMock()
+        mock_user.profile = MagicMock()
+
+        request = MagicMock()
+        request.user = mock_user
+        request.data = {"first_name": ""}  # prazan first_name kao invalid
+
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.side_effect = Exception("Invalid data")
+        mock_serializer_class.return_value = mock_serializer
+
+        view = UserProfileUpdateView()
+        view.request = request
+        obj = view.get_object()
+        serializer = mock_serializer_class(obj, data=request.data)
+        
+        with self.assertRaises(Exception):
+            serializer.is_valid(raise_exception=True)
+
+
+# --------------------------
+# UserEmailUpdateView Tests
+# --------------------------
+class UserEmailUpdateViewTests(TestCase):
+
+    @patch("user.views.UserEmailUpdateSerializer")
+    def test_patch_email_positive(self, mock_serializer_class):
+        mock_user = MagicMock()
+        request = MagicMock()
+        request.user = mock_user
+        request.data = {"old_email": "old@test.com", "new_email": "new@test.com"}
+
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.return_value = True
+        mock_serializer.save.return_value = None
+        mock_serializer_class.return_value = mock_serializer
+
+        view = UserEmailUpdateView()
+        view.request = request
+        response = view.patch(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"message": "Email updated successfully"})
+        mock_serializer.save.assert_called_once()
+
+    @patch("user.views.UserEmailUpdateSerializer")
+    def test_patch_email_negative(self, mock_serializer_class):
+        mock_user = MagicMock()
+        request = MagicMock()
+        request.user = mock_user
+        request.data = {"old_email": "wrong@test.com", "new_email": "new@test.com"}
+
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.side_effect = Exception("Invalid email")
+        mock_serializer_class.return_value = mock_serializer
+
+        view = UserEmailUpdateView()
+        view.request = request
+
+        with self.assertRaises(Exception):
+            view.patch(request)
+
+
+# --------------------------
+# UserPasswordChangeView Tests
+# --------------------------
+class UserPasswordChangeViewTests(TestCase):
+
+    @patch("user.views.UserPasswordChangeSerializer")
+    def test_patch_password_positive(self, mock_serializer_class):
+        mock_user = MagicMock()
+        request = MagicMock()
+        request.user = mock_user
+        request.data = {"old_password": "123", "new_password": "456"}
+
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.return_value = True
+        mock_serializer.save.return_value = None
+        mock_serializer_class.return_value = mock_serializer
+
+        view = UserPasswordChangeView()
+        view.request = request
+        response = view.patch(request)
+
+        self.assertEqual(response.data, {"message": "Password changed successfully"})
+        mock_serializer.save.assert_called_once()
+
+    @patch("user.views.UserPasswordChangeSerializer")
+    def test_patch_password_negative(self, mock_serializer_class):
+        mock_user = MagicMock()
+        request = MagicMock()
+        request.user = mock_user
+        request.data = {"old_password": "wrong", "new_password": "456"}
+
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.side_effect = Exception("Invalid password")
+        mock_serializer_class.return_value = mock_serializer
+
+        view = UserPasswordChangeView()
+        view.request = request
+
+        with self.assertRaises(Exception):
+            view.patch(request)
+
+
+# --------------------------
+# PersonalTokenCreateView Tests
+# --------------------------
+class PersonalTokenCreateViewTests(TestCase):
+
+    @patch("user.views.PersonalTokenSerializer")
+    def test_create_token_positive(self, mock_serializer_class):
+        mock_user = MagicMock()
+        request = MagicMock()
+        request.user = mock_user
+        request.data = {"name": "Token1"}
+
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.return_value = True
+        mock_serializer.save.return_value = None
+        mock_serializer_class.return_value = mock_serializer
+
+        view = PersonalTokenCreateView()
+        view.request = request
+        serializer = mock_serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        view.perform_create(serializer)
+
+        mock_serializer_class.assert_called_once_with(data=request.data)
+        serializer.save.assert_called_once_with(user=mock_user)
+
+    @patch("user.views.PersonalTokenSerializer")
+    def test_create_token_negative(self, mock_serializer_class):
+        mock_user = MagicMock()
+        request = MagicMock()
+        request.user = mock_user
+        request.data = {"name": ""}  # prazno ime tokena kao invalid
+
+        mock_serializer = MagicMock()
+        mock_serializer.is_valid.side_effect = Exception("Invalid token")
+        mock_serializer_class.return_value = mock_serializer
+
+        view = PersonalTokenCreateView()
+        view.request = request
+        serializer = mock_serializer_class(data=request.data)
+
+        with self.assertRaises(Exception):
+            serializer.is_valid(raise_exception=True)
