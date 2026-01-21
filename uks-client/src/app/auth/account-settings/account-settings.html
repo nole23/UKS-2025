@@ -1,0 +1,209 @@
+@if (user != null) {
+    <div class="account-settings-container">
+        <aside class="sidebar">
+            <div class="profile-box">
+                <span class="avatar-letter">{{ user?.username?.charAt(0).toUpperCase() }}</span>
+                <div class="account-text">
+                    <div class="account-email">{{ email }}</div>
+                    <div class="account-plan">Docker Personal</div>
+                </div>
+            </div>
+
+            <ul class="menu">
+                <!-- HOME -->
+                <li class="menu-item" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                    <a routerLink="/home" routerLinkActive="active">Home</a>
+                </li>
+
+                <!-- SETTINGS BUTTON -->
+                <li class="menu-item settings-header" (click)="toggleSettings()">
+                    <span>Settings</span>
+                    <span class="arrow" [class.open]="settingsOpen">▾</span>
+                </li>
+
+                <!-- SETTINGS SUBMENU -->
+                @if (settingsOpen) {
+                    <ul class="submenu">
+                        <li (click)="selectMenu('accountInfo')" [class.active]="selectedMenu==='accountInfo'">
+                        Account Information
+                        </li>
+                        <li (click)="selectMenu('email')" [class.active]="selectedMenu==='email'">
+                        Email
+                        </li>
+                        <li (click)="selectMenu('password')" [class.active]="selectedMenu==='password'">
+                        Password
+                        </li>
+                        <li (click)="selectMenu('tokens')" [class.active]="selectedMenu==='tokens'">
+                        Personal Access Tokens
+                        </li>
+                    </ul>
+                }
+            </ul>
+        </aside>
+
+        <section class="content">
+            @if (selectedMenu==='accountInfo') {
+                <h2>Account Information</h2>
+                <p>This information will be visible to all users of Docker.</p>
+                <form>
+                    <label>First Name</label>
+                    <input type="text" [(ngModel)]="account.first_name" name="fullName" placeholder="{{user.first_name}}"/>
+                    
+                    <label>Last Name</label>
+                    <input type="text" [(ngModel)]="account.last_name" name="fullName" placeholder="{{user.last_name}}"/>
+                    
+                    <label>Company</label>
+                    <input type="text" [(ngModel)]="account.company_name" name="company_name" placeholder="{{user.profile.company_name}}"/>
+
+                    <label>Location</label>
+                    <input type="text" [(ngModel)]="account.company_location" name="company_location" placeholder="{{user.profile.company_location}}"/>
+                    
+                    <label>Website</label>
+                    <input type="text" [(ngModel)]="account.company_website" name="company_website" placeholder="{{user.profile.company_website}}"/>
+                    
+                    <button type="button" (click)="saveAccountInfo()" [disabled]="!hasAccountChanges() || loading">
+                        @if (!loading) {
+                            <span>Save</span>
+                        }
+                        @if (loading) {
+                            <span><i class="spinner"></i></span>
+                        }
+                        
+                    </button>
+
+                    <!-- Poruka o uspehu ili grešci -->
+                    @if (message) {
+                        <div [ngClass]="{'success-message': !error, 'error-message': error}">
+                            {{ message }}
+                        </div>
+                    }
+                </form>
+            }
+
+            @if (selectedMenu==='email') {
+                <h2>Email</h2>
+                <p>{{ email }}</p>
+
+                <label>Enter old email address</label>
+                <input type="email" [(ngModel)]="emailUpdate.old_email", name="old_email"/>
+
+                <label>Enter new email address</label>
+                <input type="email" [(ngModel)]="emailUpdate.new_email" name="new_email"/>
+                
+                <button type="button" (click)="updateEmail()" [disabled]="!hasEmailChanges() || loading">
+                    @if (!loading) {
+                        <span>Update</span>
+                    }
+                    @if (loading) {
+                        <span><i class="spinner"></i></span>
+                    }
+                    
+                </button>
+
+                <!-- Poruka o uspehu ili grešci -->
+                @if (emailMessage) {
+                    <div [ngClass]="{'success-message': !emailError, 'error-message': emailError}">
+                        {{ emailMessage }}
+                    </div>
+                }
+            }
+
+            @if (selectedMenu==='password') {
+                <h2>Password</h2>
+                <p>**********</p>
+                <p>You can change your password by initiating a reset via email.</p>
+                <button (click)="resetPassword()">Reset Password</button>
+            }
+
+            @if (selectedMenu==='password2') {
+                <h2>Password</h2>
+                <p>Enter your new password.</p>
+
+                <label>Enter old password</label>
+                <input type="password" [(ngModel)]="updatePassword.old_password", name="old_password"/>
+
+                <label>Enter new password</label>
+                <input type="password" [(ngModel)]="updatePassword.new_password", name="new_password"/>
+                
+                <button type="button" (click)="resetPassword2()" [disabled]="!hasPasswordChanges() || loading">
+                    @if (!loading) {
+                        <span>Update password</span>
+                    }
+                    @if (loading) {
+                        <span><i class="spinner"></i></span>
+                    }
+                    
+                </button>
+
+                <!-- Poruka o uspehu ili grešci -->
+                @if (messagePassword) {
+                    <div [ngClass]="{'success-message': !errorPassword, 'error-message': errorPassword}">
+                        {{ messagePassword }}
+                    </div>
+                }
+            }
+
+            @if (selectedMenu==='tokens') {
+                @if (showTokenForm) {
+                    <h2>Create access token</h2>
+                    <p>A personal access token is similar to a password except you can have many tokens and revoke access to each one at any time</p>
+                    <button (click)="showTokenForm = false" style="background-color: red;">Cancel create new token</button>
+                    <br>
+                    <br>
+                    <br>
+                    
+                    <label>Token Name</label>
+                    <input type="text" [(ngModel)]="newTokenName" placeholder="Enter token name" />
+                    <button (click)="generateToken()" [disabled]="loading || !newTokenName">
+                        <span *ngIf="!loading">Generate</span>
+                        <span *ngIf="loading"><i class="spinner"></i></span>
+                    </button>
+
+                    <div *ngIf="messageToken" [ngClass]="{'success-message': !errorToken, 'error-message': errorToken}">
+                        {{ messageToken }}
+                    </div>
+                }
+                @else {
+                    <h2>Personal Access Tokens</h2>
+                    <p>You can use a personal access token instead of a password for Docker CLI authentication. Create multiple tokens, control their scope, and delete tokens at any time</p>
+                    <button (click)="showTokenForm = true">Generate new token</button>
+                    <br>
+
+                    @if (tokens && tokens.length > 0) {
+                        <table class="tokens-table" >
+                            <thead>
+                                <tr>
+                                <th>Name</th>
+                                <th>Token</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (token of tokens; track token) {
+                                    <tr>
+                                        <td>{{ token.name }}</td>
+                                        <td>{{ token.token }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    @else {
+                        <p >No personal tokens found.</p>
+                    }
+
+                }                
+            }
+        </section>
+    </div>
+}
+
+
+<!-- Modal za simulaciju emaila -->
+<div class="modal-backdrop" *ngIf="showPasswordModal">
+  <div class="modal">
+    <h3>Email sending simulation</h3>
+    <div [innerHTML]="simulatedEmailContent"></div>
+    <button (click)="closeModal()" style="background-color: red;">Close</button>
+    <button (click)="selectMenuAndClose('password2')" style="float: right;">Restart Password</button>
+  </div>
+</div>
