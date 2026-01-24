@@ -9,9 +9,26 @@ export class ProjectService {
 
   constructor(private http: HttpClient) {}
 
-  getProjects(query: string = '', ): Observable<any> {
+  getProjects(query: string = '', visibility: 'all' | 'public' | 'private' = 'all', sortingFilter = 'r'): Observable<any> {
     let params = new HttpParams();
     if(query) params = params.set('q', query);
+    
+    // šaljemo samo ako nije "all"
+    if (visibility !== 'all') {
+      params = params.set('visibility', visibility);
+    }
+
+    if (sortingFilter != 'r') {
+      params = params.set('sorting', sortingFilter);
+    }
     return this.http.get(this.apiUrl + 'repositories/search', { params, withCredentials: true });
+  }
+
+  /**
+   * Kreiraj novi repository
+   * @param repository objekat {name, description, visibility, organization_id?}
+   */
+  createProject(repository: any): Observable<any> {
+    return this.http.post<any>(this.apiUrl + 'repositories', repository);
   }
 }

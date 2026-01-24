@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.db.models import Q
+from django.db.models.functions import Random  # za random redosled
 
 from .models import Repository
 from .serializer import RepositorySerializer
@@ -17,6 +18,7 @@ class RepositoryListView(APIView):
     Vraca listu svih repositorija na sistemu
     """
     def get(self, request):
+        query = request.query_params.get('q', '')
         repositories = Repository.objects.filter(
             visibility="public"
         ).order_by("-created_at")
@@ -74,13 +76,27 @@ class RepositorySearchView(APIView):
     """
     def get(self, request):
         query = request.query_params.get("q", "")
+        visibility = request.query_params.get("visibility", "public")  # default = public
+        sorting = request.query_params.get("sorting", "l")  # default = latest
 
-        repositories = Repository.objects.filter(
-            Q(name__icontains=query) |
-            Q(owner__username__icontains=query) |
-            Q(organization__name__icontains=query),
-            visibility="public"
-        ).order_by("-created_at")
+        # Start sa visibility filterom
+        repositories = Repository.objects.filter(visibility=visibility)
+
+        # Ako postoji query, dodaj filter po imenu, owneru ili organizaciji
+        if query:
+            repositories = repositories.filter(
+                Q(name__icontains=query) |
+                Q(owner__username__icontains=query) |
+                Q(organization__name__icontains=query)
+            )
+
+        # Sorting
+        if sorting == 'r':
+            repositories = repositories.order_by(Random())
+        elif sorting == 'o':
+            repositories = repositories.order_by('created_at')
+        else:
+            repositories = repositories.order_by('-created_at')
 
         serializer = RepositorySerializer(repositories, many=True)
         return Response(serializer.data)

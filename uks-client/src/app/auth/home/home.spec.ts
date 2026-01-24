@@ -50,7 +50,7 @@ describe('AuthHomeComponent (standalone)', () => {
     component.ngOnInit();
 
     expect(component.username).toEqual(fakeUser);
-    expect(mockProjectService.getProjects).toHaveBeenCalledWith('');
+    expect(mockProjectService.getProjects).toHaveBeenCalledWith('', 'all', 'r');
   });
 
   it('loadProjects should populate projects on success', () => {

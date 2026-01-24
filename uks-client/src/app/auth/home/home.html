@@ -69,6 +69,19 @@
           [(ngModel)]="searchQuery"
           (keyup.enter)="search()"
         />
+
+        <select [(ngModel)]="visibilityFilter" (change)="search()">
+          <option value="all">All</option>
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+
+        <select [(ngModel)]="sortingFilter" (change)="search()">
+          <option value="r">Randomly</option>
+          <option value="l">Latest</option>
+          <option value="o">Oldest</option>
+        </select>
+
         <button (click)="search()" [disabled]="isLoading">
           @if (!isLoading) {
             <span>Search</span>
@@ -77,7 +90,7 @@
             <span class="spinner"></span>
           }
         </button>
-        <button class="btn-new" (click)="openNewProjectModal()">+ New Repository</button>
+        <button class="btn-new" (click)="openBody('create-repository')">+ New Repository</button>
       </section>
 
       <!-- PROJECT LIST -->
@@ -126,6 +139,16 @@
         <h2>Default repository privacy</h2>
       </div>
       <app-defautl-private-repository></app-defautl-private-repository>
+    }
+
+    @if (typeBody == 'create-repository') {
+      <div class="body-title">
+        <h2>Create repository</h2>
+      </div>
+      <app-create-repository
+        (close)="onCreateRepoClose()"
+        (created)="onRepoCreated($event)">
+      </app-create-repository>
     }
 
     <!-- FOOTER -->
