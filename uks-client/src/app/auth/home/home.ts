@@ -4,10 +4,11 @@ import { AuthService } from '../../services/auth';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DefautlPrivateRepository } from '../defautl-private-repository/defautl-private-repository';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule, CommonModule],
+  imports: [FormsModule, CommonModule, DefautlPrivateRepository],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
@@ -18,6 +19,8 @@ export class AuthHomeComponent implements OnInit{
   message: string = '';
   isLoading: boolean = false;
   dropdownOpen = false;
+  settingsOpen = true;
+  typeBody: string = 'home';
 
   constructor(
     private projectService: ProjectService,
@@ -62,4 +65,16 @@ export class AuthHomeComponent implements OnInit{
     alert('Ovo bi otvorilo modal za kreiranje novog projekta'); 
     // Kasnije se poveže sa modalom ili reactive form
   }
+
+  openLink(link: string) {
+    this.router.navigate(['/' + link]);
+  }
+
+  toggleSettings() {
+    this.settingsOpen = !this.settingsOpen;
+  }
+
+  openBody(link: string) {
+    this.typeBody = link;
+  }  
 }
