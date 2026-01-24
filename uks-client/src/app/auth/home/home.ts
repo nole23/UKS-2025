@@ -1,20 +1,24 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { ProjectService } from '../../services/project';
 import { AuthService } from '../../services/auth';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DefautlPrivateRepository } from '../defautl-private-repository/defautl-private-repository';
+import { CreateRepository } from '../create-repository/create-repository';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule, CommonModule, DefautlPrivateRepository],
+  imports: [FormsModule, CommonModule, DefautlPrivateRepository, CreateRepository],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
 export class AuthHomeComponent implements OnInit{
+  @ViewChild(CreateRepository) createRepoComp!: CreateRepository;
   projects: any[] = [];
   searchQuery: string = '';
+  visibilityFilter: 'all' | 'public' | 'private' = 'all'; // default = sve
+  sortingFilter: 'r' | 'l' | 'o' = 'r';
   username: any = '';
   message: string = '';
   isLoading: boolean = false;
@@ -40,7 +44,7 @@ export class AuthHomeComponent implements OnInit{
 
   loadProjects(): void {
     this.isLoading = true;
-    this.projectService.getProjects(this.searchQuery).subscribe({
+    this.projectService.getProjects(this.searchQuery, this.visibilityFilter, this.sortingFilter).subscribe({
       next: (data: any) => {
         this.projects = data;
         this.isLoading = false;
@@ -76,5 +80,24 @@ export class AuthHomeComponent implements OnInit{
 
   openBody(link: string) {
     this.typeBody = link;
-  }  
+  }
+
+  onCreateRepoClose() {
+    this.typeBody = 'home';
+  }
+
+  onRepoCreated(repo: any) {
+    console.log('Repo created:', repo);
+
+    this.projectService.createProject(repo).subscribe({
+    next: (res) => {
+      this.createRepoComp.stopLoading(); // ugasi spinner
+      this.loadProjects(); // refresuj listu
+      this.typeBody = 'home';
+    },
+    error: (err) => {
+      this.createRepoComp.errorMessage();
+    }
+  });
+  }
 }
