@@ -174,11 +174,11 @@ class RepositorySearchViewIntegrationTests(APITestCase):
     def test_search_by_owner(self):
         response = self.client.get(self.search_url, {'q': 'searchuser'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Trebalo bi da vrati samo public repozitorijume
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data), 2)  # sada samo public repoi
         repo_names = [r['name'] for r in response.data]
         self.assertIn("RepoOne", repo_names)
         self.assertIn("RepoTwo", repo_names)
+
 
     # ----------------------
     # Negativan test - search bez rezultata

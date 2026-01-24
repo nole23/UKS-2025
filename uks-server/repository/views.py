@@ -76,28 +76,28 @@ class RepositorySearchView(APIView):
     """
     def get(self, request):
         query = request.query_params.get("q", "")
-        visibility = request.query_params.get("visibility", "")
-        sorting = request.query_params.get("sorting", "")  # 'r', 'l', 'o'
+        visibility = request.query_params.get("visibility", "public")  # default = public
+        sorting = request.query_params.get("sorting", "l")  # default = latest
 
-        repositories = Repository.objects.all()
+        # Start sa visibility filterom
+        repositories = Repository.objects.filter(visibility=visibility)
 
-        repositories = Repository.objects.filter(
-            Q(name__icontains=query) |
-            Q(owner__username__icontains=query) |
-            Q(organization__name__icontains=query)
-        )
+        # Ako postoji query, dodaj filter po imenu, owneru ili organizaciji
+        if query:
+            repositories = repositories.filter(
+                Q(name__icontains=query) |
+                Q(owner__username__icontains=query) |
+                Q(organization__name__icontains=query)
+            )
 
-        if visibility in ['public', 'private']:
-            repositories = repositories.filter(visibility=visibility)
-        
+        # Sorting
         if sorting == 'r':
-            repositories = repositories.order_by(Random())  # nasumično
+            repositories = repositories.order_by(Random())
         elif sorting == 'o':
-            repositories = repositories.order_by('created_at')  # oldest
+            repositories = repositories.order_by('created_at')
         else:
-            # podrazumevano ili 'l'
-            repositories = repositories.order_by('-created_at')  # latest
-        
+            repositories = repositories.order_by('-created_at')
+
         serializer = RepositorySerializer(repositories, many=True)
         return Response(serializer.data)
 

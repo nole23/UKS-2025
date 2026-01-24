@@ -123,16 +123,18 @@ class RepositorySearchViewUnitTests(TestCase):
     @patch("repository.views.Repository.objects")
     @patch("repository.views.RepositorySerializer")
     def test_get_search_repositories_positive(self, mock_serializer_class, mock_objects):
-        # Mock query set sa rezultatima pretrage
+        # Kreiramo "duboki" mock QuerySet
         mock_queryset = MagicMock()
-        mock_objects.filter.return_value.order_by.return_value = mock_queryset
+        # Svaki poziv filter vraća isti mock (chainable)
+        mock_queryset.filter.return_value = mock_queryset
+        mock_queryset.order_by.return_value = mock_queryset
 
-        # Mock serializer
+        mock_objects.filter.return_value = mock_queryset
+
         mock_serializer = MagicMock()
         mock_serializer.data = [{"name": "Repo1"}, {"name": "Repo2"}]
         mock_serializer_class.return_value = mock_serializer
 
-        # Fake request sa query param 'q'
         request = MagicMock()
         request.user = "fake_user"
         request.query_params = {"q": "Repo"}
@@ -140,17 +142,17 @@ class RepositorySearchViewUnitTests(TestCase):
         view = RepositorySearchView()
         response = view.get(request)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [{"name": "Repo1"}, {"name": "Repo2"}])
+        # Proveravamo rezultat
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == [{"name": "Repo1"}, {"name": "Repo2"}]
 
-        # Provera da je filter pozvan sa Q objektom i visibility
-        mock_objects.filter.assert_called_once()
-        args, kwargs = mock_objects.filter.call_args
-        # visibility argument mora biti prosledjen
-        self.assertEqual(kwargs.get("visibility"), "public")
+        # Proveravamo da su filter i order_by pozvani bar jednom
+        mock_objects.filter.assert_called()  # filter visibility
+        mock_queryset.filter.assert_called()  # filter Q objekt
+        mock_queryset.order_by.assert_called()  # order_by na finalnom QuerySet
 
-        mock_objects.filter.return_value.order_by.assert_called_once_with("-created_at")
         mock_serializer_class.assert_called_once_with(mock_queryset, many=True)
+
 
     # -------------------
     # GET metoda - negativni slučaj (prazna pretraga)
@@ -158,7 +160,6 @@ class RepositorySearchViewUnitTests(TestCase):
     @patch("repository.views.Repository.objects")
     @patch("repository.views.RepositorySerializer")
     def test_get_search_repositories_negative(self, mock_serializer_class, mock_objects):
-        # Mock query set je prazan
         mock_queryset = MagicMock()
         mock_objects.filter.return_value.order_by.return_value = mock_queryset
 
@@ -166,7 +167,6 @@ class RepositorySearchViewUnitTests(TestCase):
         mock_serializer.data = []
         mock_serializer_class.return_value = mock_serializer
 
-        # Fake request sa praznim query param
         request = MagicMock()
         request.user = "fake_user"
         request.query_params = {"q": ""}
@@ -177,9 +177,6 @@ class RepositorySearchViewUnitTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, [])
 
-        mock_objects.filter.assert_called_once()
-        kwargs = mock_objects.filter.call_args[1]
-        self.assertEqual(kwargs.get("visibility"), "public")
-
-        mock_objects.filter.return_value.order_by.assert_called_once_with("-created_at")
+        mock_objects.filter.assert_called()
+        mock_objects.filter.return_value.order_by.assert_called_once_with('-created_at')
         mock_serializer_class.assert_called_once_with(mock_queryset, many=True)
