@@ -9,8 +9,6 @@ body {
 
 /* Container for centered content */
 .container {
-  max-width: 400px;
-  margin: 50px auto;
   padding: 30px;
   background-color: #ffffff;
   border-radius: 10px;
@@ -115,4 +113,8 @@ button:disabled {
   -webkit-user-select: none;
   user-select: none;
   font-size: 21px;
+}
+
+.body-title {
+  text-align: left;
 }
