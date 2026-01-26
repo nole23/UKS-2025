@@ -18,6 +18,3 @@ class Star(models.Model):
 
     class Meta:
         unique_together = ("user", "repository")
-
-    def __str__(self):
-        return f"{self.user} starred {self.repository}"

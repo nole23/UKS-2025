@@ -359,3 +359,12 @@
 .dropdown-menu a:hover {
   background-color: #f6f8fa;
 }
+
+.project-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.project-row:hover {
+  background-color: #f5f7fa; /* svetlo siva / plavičasta */
+}

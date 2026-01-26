@@ -1,7 +1,8 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 from rest_framework import status
-from repository.views import RepositoryListView
+from repository.views import RepositoryListView, RepositoryDetailView
+
 
 class RepositoryListViewUnitTests(TestCase):
 
@@ -180,3 +181,193 @@ class RepositorySearchViewUnitTests(TestCase):
         mock_objects.filter.assert_called()
         mock_objects.filter.return_value.order_by.assert_called_once_with('-created_at')
         mock_serializer_class.assert_called_once_with(mock_queryset, many=True)
+
+
+
+class RepositoryDetailViewTests(TestCase):
+
+    # -------------------
+    # GET metoda - pozitivni slučaj
+    # -------------------
+    @patch("repository.views.Repository.objects")
+    @patch("repository.views.RepositorySerializer")
+    def test_get_repository_positive(self, mock_serializer_class, mock_repo_objects):
+        mock_repo = MagicMock()
+        mock_repo_objects.get.return_value = mock_repo
+
+        mock_serializer = MagicMock()
+        mock_serializer.data = {"id": 1, "name": "Repo1"}
+        mock_serializer_class.return_value = mock_serializer
+
+        request = MagicMock()
+        request.user = "fake_user"
+
+        view = RepositoryDetailView()
+        response = view.get(request, pk=1)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {"id": 1, "name": "Repo1"}
+
+        mock_repo_objects.get.assert_called_once_with(pk=1)
+        mock_serializer_class.assert_called_once_with(mock_repo)
+
+    # -------------------
+    # DELETE metoda - negativni slučaj (user nije owner)
+    # -------------------
+    @patch("repository.views.Repository.objects")
+    def test_delete_repository_forbidden(self, mock_repo_objects):
+        mock_repo = MagicMock()
+        mock_repo.owner = "other_user"
+        mock_repo_objects.get.return_value = mock_repo
+
+        request = MagicMock()
+        request.user = "fake_user"  # nije owner
+
+        view = RepositoryDetailView()
+        response = view.delete(request, pk=1)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        mock_repo.delete.assert_not_called()
+
+    # -------------------
+    # DELETE metoda - pozitivni slučaj
+    # -------------------
+    @patch("repository.views.Repository.objects")
+    def test_delete_repository_positive(self, mock_repo_objects):
+        mock_repo = MagicMock()
+        mock_repo.owner = "fake_user"
+        mock_repo_objects.get.return_value = mock_repo
+
+        request = MagicMock()
+        request.user = "fake_user"
+
+        view = RepositoryDetailView()
+        response = view.delete(request, pk=1)
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        mock_repo.delete.assert_called_once()
+
+
+from unittest import TestCase
+from unittest.mock import MagicMock, patch
+from rest_framework import status
+from repository.views import RepositoryCollaboratorView
+from repository.models import Repository, RepositoryCollaborator
+from django.contrib.auth.models import User
+
+
+class RepositoryCollaboratorViewTests(TestCase):
+
+    # -------------------
+    # GET metoda - pozitivni slučaj
+    # -------------------
+    @patch("repository.views.RepositoryCollaborator.objects")
+    def test_get_collaborators_positive(self, mock_collab_objects):
+        collab1 = MagicMock()
+        collab1.user.id = 1
+        collab1.user.username = "user1"
+
+        collab2 = MagicMock()
+        collab2.user.id = 2
+        collab2.user.username = "user2"
+
+        mock_collab_objects.filter.return_value = [collab1, collab2]
+
+        request = MagicMock()
+        request.user = "fake_user"
+
+        view = RepositoryCollaboratorView()
+        response = view.get(request, pk=1)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == [
+            {"id": 1, "username": "user1"},
+            {"id": 2, "username": "user2"},
+        ]
+        mock_collab_objects.filter.assert_called_once_with(repository_id=1)
+
+    # -------------------
+    # POST metoda - pozitivni slučaj
+    # -------------------
+    @patch("repository.views.RepositoryCollaborator.objects")
+    @patch("repository.views.User.objects")
+    @patch("repository.views.Repository.objects")
+    def test_post_collaborator_positive(self, mock_repo_objects, mock_user_objects, mock_collab_objects):
+        mock_repo = MagicMock()
+        mock_repo.owner = "fake_user"
+        mock_repo_objects.get.return_value = mock_repo
+
+        mock_user = MagicMock()
+        mock_user_objects.get.return_value = mock_user
+
+        mock_collab_objects.get_or_create.return_value = (MagicMock(), True)
+
+        request = MagicMock()
+        request.user = "fake_user"
+        request.data = {"user_id": 123}
+
+        view = RepositoryCollaboratorView()
+        response = view.post(request, pk=1)
+
+        assert response.status_code == 200
+        assert response.data == {"message": "Collaborator added"}
+        mock_collab_objects.get_or_create.assert_called_once_with(repository=mock_repo, user=mock_user)
+
+    # -------------------
+    # POST metoda - negativni slučaj (user nije owner)
+    # -------------------
+    @patch("repository.views.Repository.objects")
+    def test_post_collaborator_forbidden(self, mock_repo_objects):
+        mock_repo = MagicMock()
+        mock_repo.owner = "other_user"
+        mock_repo_objects.get.return_value = mock_repo
+
+        request = MagicMock()
+        request.user = "fake_user"
+        request.data = {"user_id": 123}
+
+        view = RepositoryCollaboratorView()
+        response = view.post(request, pk=1)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    # -------------------
+    # DELETE metoda - pozitivni slučaj
+    # -------------------
+    @patch("repository.views.RepositoryCollaborator.objects")
+    @patch("repository.views.Repository.objects")
+    def test_delete_collaborator_positive(self, mock_repo_objects, mock_collab_objects):
+        mock_repo = MagicMock()
+        mock_repo.owner = "fake_user"
+        mock_repo_objects.get.return_value = mock_repo
+
+        mock_collab_qs = MagicMock()
+        mock_collab_objects.filter.return_value = mock_collab_qs
+
+        request = MagicMock()
+        request.user = "fake_user"
+
+        view = RepositoryCollaboratorView()
+        response = view.delete(request, pk=1, user_id=123)
+
+        assert response.status_code == 200
+        assert response.data == {"message": "Collaborator removed"}
+        mock_collab_objects.filter.assert_called_once_with(repository=mock_repo, user_id=123)
+        mock_collab_qs.delete.assert_called_once()
+
+    # -------------------
+    # DELETE metoda - negativni slučaj (user nije owner)
+    # -------------------
+    @patch("repository.views.Repository.objects")
+    def test_delete_collaborator_forbidden(self, mock_repo_objects):
+        mock_repo = MagicMock()
+        mock_repo.owner = "other_user"
+        mock_repo_objects.get.return_value = mock_repo
+
+        request = MagicMock()
+        request.user = "fake_user"
+
+        view = RepositoryCollaboratorView()
+        response = view.delete(request, pk=1, user_id=123)
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN

@@ -31,4 +31,28 @@ export class ProjectService {
   createProject(repository: any): Observable<any> {
     return this.http.post<any>(this.apiUrl + 'repositories', repository);
   }
+
+  getProjectTags(repoId: number): Observable<any> {
+    return this.http.get<any>(this.apiUrl + `repositories/${repoId}/tags`, { withCredentials: true });
+  }
+
+  removeTag(repoId: number, tagId: number): Observable<any> {
+    return this.http.delete<any>(this.apiUrl + `repositories/${repoId}/tags/${tagId}/`, { withCredentials: true });
+  }
+
+  addTag(repoId: number, tag: any): Observable<any> {
+    return this.http.post<any>(this.apiUrl + `repositories/${repoId}/tags/`, tag);
+  }
+
+  getCollaborators(repoId: number): Observable<any> {
+    return this.http.get<any>(this.apiUrl + `repositories/${repoId}/collaborators/`, { withCredentials: true });
+  }
+
+  addCollaborator(repoId: number, userId: number) {
+    return this.http.post<any>(this.apiUrl + `repositories/${repoId}/collaborators/`, { user_id: userId, role: 'write' });
+  }
+
+  removeCollaborators(repoId: number, userId: number) {
+    return this.http.delete<any>(this.apiUrl + `repositories/${repoId}/collaborators/${userId}/`, { withCredentials: true });
+  }
 }

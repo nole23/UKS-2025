@@ -6,10 +6,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DefautlPrivateRepository } from '../defautl-private-repository/defautl-private-repository';
 import { CreateRepository } from '../create-repository/create-repository';
+import { RepositoryDetails } from '../repository-details/repository-details';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule, CommonModule, DefautlPrivateRepository, CreateRepository],
+  imports: [FormsModule, CommonModule, DefautlPrivateRepository, CreateRepository, RepositoryDetails],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
@@ -25,6 +26,7 @@ export class AuthHomeComponent implements OnInit{
   dropdownOpen = false;
   settingsOpen = true;
   typeBody: string = 'home';
+  openRepo: any = null;
 
   constructor(
     private projectService: ProjectService,
@@ -90,14 +92,20 @@ export class AuthHomeComponent implements OnInit{
     console.log('Repo created:', repo);
 
     this.projectService.createProject(repo).subscribe({
-    next: (res) => {
-      this.createRepoComp.stopLoading(); // ugasi spinner
-      this.loadProjects(); // refresuj listu
-      this.typeBody = 'home';
-    },
-    error: (err) => {
-      this.createRepoComp.errorMessage();
-    }
-  });
+      next: (res) => {
+        this.createRepoComp.stopLoading(); // ugasi spinner
+        this.loadProjects(); // refresuj listu
+        this.typeBody = 'home';
+      },
+      error: (err) => {
+        this.createRepoComp.errorMessage();
+      }
+    });
+  }
+
+  openRepository(repo: any) {
+    console.log(repo);
+    this.openRepo = repo;
+    this.openBody('open-repo')
   }
 }

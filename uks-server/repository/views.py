@@ -6,10 +6,10 @@ from rest_framework import status
 from django.db.models import Q
 from django.db.models.functions import Random  # za random redosled
 
-from .models import Repository
+from .models import Repository, RepositoryCollaborator
 from .serializer import RepositorySerializer
 from Organization.models import Organization
-
+from user.models import User
 
 class RepositoryListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -116,3 +116,68 @@ class DockerInfoView(APIView):
                 "Stars"
             ]
         })
+
+class RepositoryDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        repo = Repository.objects.get(pk=pk)
+        serializer = RepositorySerializer(repo)
+        return Response(serializer.data)
+
+    def delete(self, request, pk):
+        repo = Repository.objects.get(pk=pk)
+        if repo.owner != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        repo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class RepositoryCollaboratorView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    """
+    url: api/repositories/4/collaborators/
+    requst: Body prazan
+    """
+    def get(self, request, pk):
+        collaborators = RepositoryCollaborator.objects.filter(repository_id=pk)
+        return Response([
+            {"id": c.user.id, "username": c.user.username}
+            for c in collaborators
+        ])
+
+     
+    """
+    url: api/repositories/4/collaborators/
+    requst:
+    {
+        "user_id": ,
+        "role": "write"
+    }
+    """
+    def post(self, request, pk):
+        repo = Repository.objects.get(pk=pk)
+        if repo.owner != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        user = User.objects.get(id=request.data.get("user_id"))
+        RepositoryCollaborator.objects.get_or_create(
+            repository=repo,
+            user=user
+        )
+        return Response({"message": "Collaborator added"})
+
+    """
+    url: api/repositories/4/collaborators/
+    requst: Body prazan
+    """
+    def delete(self, request, pk, user_id):
+        repo = Repository.objects.get(pk=pk)
+        if repo.owner != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        RepositoryCollaborator.objects.filter(
+            repository=repo,
+            user_id=user_id
+        ).delete()
+        return Response({"message": "Collaborator removed"})

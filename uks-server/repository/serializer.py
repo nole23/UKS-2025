@@ -12,6 +12,13 @@ class RepositorySerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    # Novo polje za prikaz poslednjeg push-a
+    last_pushed_at = serializers.DateTimeField(read_only=True)
+    
+    # Opcionalno: prikaz broja stars i pulls
+    stars_count = serializers.IntegerField(read_only=True)
+    pulls_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Repository
         fields = [
@@ -22,4 +29,7 @@ class RepositorySerializer(serializers.ModelSerializer):
             "created_at",
             "owner_username",
             "organization_name",
+            "last_pushed_at",  # 👈 dodato
+            "stars_count",     # 👈 opcionalno
+            "pulls_count"      # 👈 opcionalno
         ]

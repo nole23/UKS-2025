@@ -112,7 +112,7 @@
             </thead>
             <tbody>
               @for (repo of projects; track repo) {
-                <tr>
+                <tr class="project-row" (click)="openRepository(repo)">
                   <td>{{repo.name}}</td>
                   <td>{{repo.created_at | date:'short'}}</td>
                   <td>
@@ -149,6 +149,13 @@
         (close)="onCreateRepoClose()"
         (created)="onRepoCreated($event)">
       </app-create-repository>
+    }
+
+    @if (typeBody == 'open-repo') {
+      <div class="body-title">
+        <h2>{{username.username + '/' + openRepo.name}}</h2>
+      </div>
+      <app-repository-details [repository]="openRepo"></app-repository-details>
     }
 
     <!-- FOOTER -->
