@@ -1,0 +1,101 @@
+<div class="create-repo-layout">
+
+  <!-- LEFT SIDE -->
+  <div class="left">
+    <form>
+
+      <!-- REPOSITORY NAME -->
+      <div class="form-group">
+        <input
+          type="text"
+          name="name"
+          [(ngModel)]="repository.name"
+          placeholder="Repository Name*"
+        />
+      </div>
+
+      <!-- DESCRIPTION -->
+      <div class="form-group">
+        <input
+          type="text"
+          name="description"
+          [(ngModel)]="repository.description"
+          placeholder="A short description of your repository*"
+        />
+      </div>
+
+      <!-- VISIBILITY -->
+      <div class="visibility-section">
+        <label class="visibility-title">Visibility</label>
+
+        <!-- PUBLIC -->
+        <label class="visibility-option">
+          <input
+            type="radio"
+            name="visibility"
+            [(ngModel)]="repository.visibility"
+            value="public"
+            checked
+          />
+          <div class="visibility-content">
+            <strong>Public</strong>
+            <span>Anyone can pull this repository</span>
+          </div>
+        </label>
+
+        <!-- PRIVATE -->
+        <label class="visibility-option">
+          <input
+            type="radio"
+            name="visibility"
+            [(ngModel)]="repository.visibility"
+            value="private"
+          />
+          <div class="visibility-content">
+            <strong>Private</strong>
+            <span>Only you and collaborators can pull this repository</span>
+          </div>
+        </label>
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="actions">
+        <button type="button" class="btn-cancel" (click)="cancel()">Cancel</button>
+        <button type="button" (click)="create()" [disabled]="hasAccountChanges() || loading">
+            @if (!loading) {
+                <span>Create</span>
+            }
+            @if (loading) {
+                <span><i class="spinner"></i></span>
+            }
+        </button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- RIGHT SIDE -->
+  <div class="right">
+    <h3>Pushing images</h3>
+
+    <p>You can push a new image to this repository using the CLI:</p>
+
+    <div class="code-box">
+      docker tag local-image:tagname new-repo:tagname<br />
+      docker push new-repo:tagname
+    </div>
+
+    <p>
+      Make sure to replace <span class="code">tagname</span> with your desired
+      image repository tag.
+    </p>
+  </div>
+
+
+</div>
+<!-- Poruka o uspehu ili grešci -->
+@if (message) {
+    <div class="error-message">
+        {{ message }}
+    </div>
+}

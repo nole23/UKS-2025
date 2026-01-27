@@ -1,0 +1,16 @@
+<div class="container">
+  <!-- Back dugme u gornjem levom uglu -->
+  <button class="back-btn" (click)="goHome()">← Back</button>
+
+  <h2>Login</h2> <!-- ili Register -->
+  <form [formGroup]="loginForm" (ngSubmit)="login()">
+    <input formControlName="username" placeholder="Username" required /><br/>
+    <input formControlName="password" type="password" placeholder="Password" required /><br/>
+    <button type="submit" [disabled]="isLoading">
+      <span *ngIf="!isLoading">Login</span>
+      <span *ngIf="isLoading" class="spinner"></span>
+    </button>
+  </form>
+
+  <p class="message" [ngClass]="{'error': isError}">{{message}}</p>
+</div>

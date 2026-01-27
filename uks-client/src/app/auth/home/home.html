@@ -1,0 +1,167 @@
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <!-- PROFILE BOX -->
+    <div class="profile-box">
+      <div class="sidebar-icon">
+        <i class="icon-user"></i>
+      </div>
+
+      <div class="account-text">
+        <div class="account-email">{{ username?.username }}</div>
+        <div class="account-plan">Docker Personal</div>
+      </div>
+    </div>
+
+    <ul class="menu">
+      <!-- REPOSITORIES -->
+      <li class="menu-item">
+        <a (click)="openBody('home')">Home</a>
+      </li>
+
+      <!-- SETTINGS -->
+      <li class="menu-item settings-header" (click)="toggleSettings()">
+        <span>Settings</span>
+        <span class="arrow" [class.open]="settingsOpen">▾</span>
+      </li>
+
+      @if (settingsOpen) {
+        <ul class="submenu">
+          <li>
+            <a style="cursor: pointer;" (click)="openBody('default-private')">Default private</a>
+          </li>
+        </ul>
+      }
+    </ul>
+  </aside>
+  
+  <div class="container home-container">
+    <!-- HEADER -->
+    <header class="header">
+      <h1>UKS Hub</h1>
+      
+      <div class="user-info">
+        <!-- Avatar Button -->
+        <div class="avatar-dropdown" (click)="toggleDropdown()">
+          <span class="avatar-letter">{{ username.username.charAt(0).toUpperCase() }}</span>
+          <div class="dropdown-menu" [class.show]="dropdownOpen">
+            <a (click)="openLink('home')">My Profile</a>
+            <a (click)="openLink('account-settings')">Account Settings</a>
+            <div class="logout">
+              <a (click)="logout()">Sing out</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    @if (typeBody == 'home') {
+      <div class="body-title">
+        <h2>Repositories</h2>
+        <p>All repositories within the <span>{{username.username}}</span> namespace.</p>
+      </div>
+
+      <!-- SEARCH & NEW PROJECT -->
+      <section class="project-controls">
+        <input
+          type="text"
+          placeholder="Search repositories..."
+          [(ngModel)]="searchQuery"
+          (keyup.enter)="search()"
+        />
+
+        <select [(ngModel)]="visibilityFilter" (change)="search()">
+          <option value="all">All</option>
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </select>
+
+        <select [(ngModel)]="sortingFilter" (change)="search()">
+          <option value="r">Randomly</option>
+          <option value="l">Latest</option>
+          <option value="o">Oldest</option>
+        </select>
+
+        <button (click)="search()" [disabled]="isLoading">
+          @if (!isLoading) {
+            <span>Search</span>
+          }
+          @if (isLoading) {
+            <span class="spinner"></span>
+          }
+        </button>
+        <button class="btn-new" (click)="openBody('create-repository')">+ New Repository</button>
+      </section>
+
+      <!-- PROJECT LIST -->
+      <section class="project-list">
+        <div *ngIf="projects.length === 0 && !isLoading" class="no-projects">
+          No repositories found.
+        </div>
+
+        @if (projects.length > 0) {
+          <table class="projects-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Last Updated</th>
+                <th>Visibility</th>
+                <th>Owner</th>
+                <th>Organization</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (repo of projects; track repo) {
+                <tr class="project-row" (click)="openRepository(repo)">
+                  <td>{{repo.name}}</td>
+                  <td>{{repo.created_at | date:'short'}}</td>
+                  <td>
+                    <span class="visibility" [ngClass]="repo.visibility">{{repo.visibility}}</span>
+                  </td>
+                  <td>{{repo.owner_username}}</td>
+                  <td>{{repo.organization_name || '-'}}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+
+        @if (isLoading) {
+          <div class="loading-msg">
+            Loading repositories...
+          </div>
+        }
+        
+      </section>
+    }
+    @if (typeBody == 'default-private') {
+      <div class="body-title">
+        <h2>Default repository privacy</h2>
+      </div>
+      <app-defautl-private-repository></app-defautl-private-repository>
+    }
+
+    @if (typeBody == 'create-repository') {
+      <div class="body-title">
+        <h2>Create repository</h2>
+      </div>
+      <app-create-repository
+        (close)="onCreateRepoClose()"
+        (created)="onRepoCreated($event)">
+      </app-create-repository>
+    }
+
+    @if (typeBody == 'open-repo') {
+      <div class="body-title">
+        <h2>{{username.username + '/' + openRepo.name}}</h2>
+      </div>
+      <app-repository-details [repository]="openRepo"></app-repository-details>
+    }
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <p>UKS Hub © 2026 | Student Project</p>
+    </footer>
+  </div>
+
+</div>
