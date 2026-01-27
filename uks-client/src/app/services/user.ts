@@ -98,4 +98,14 @@ export class UserService {
       tap(res => console.log('Novi token kreiran:', res))
     );
   }
+
+  filterUserByText(queryText: string): Observable<any> {
+    const url = `${this.apiUrl}profile/search/`;
+    let params = new HttpParams();
+    if (queryText) {
+      params = params.set('q', queryText);
+    }
+
+    return this.http.get(url, { params });
+  }
 }

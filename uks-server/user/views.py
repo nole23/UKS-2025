@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions, status
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from user.serializers import (
     UserRegistrationSerializer,
@@ -6,13 +7,14 @@ from user.serializers import (
     UserProfileUpdateSerializer,
     UserEmailUpdateSerializer,
     UserPasswordChangeSerializer,
-    PersonalTokenSerializer
+    PersonalTokenSerializer,
+    UserListSerializer
 )
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from .models import PersonalToken
+from .models import PersonalToken, User
 
 
 # Registration
@@ -193,3 +195,15 @@ class PersonalTokenListView(generics.ListAPIView):
     def get_queryset(self):
         # vraća samo tokene za trenutno ulogovanog korisnika
         return PersonalToken.objects.filter(user=self.request.user)
+    
+
+class UserListView(ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = UserListSerializer
+
+    def get_queryset(self):
+        query = self.request.query_params.get("q", "")
+        qs = User.objects.exclude(pk=self.request.user.pk)  # <-- isključujemo sebe
+        if query:
+            qs = qs.filter(username__icontains=query)
+        return qs

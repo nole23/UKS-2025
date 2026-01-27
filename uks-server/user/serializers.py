@@ -130,3 +130,9 @@ class PersonalTokenSerializer(serializers.ModelSerializer):
         model = PersonalToken
         fields = ("id", "name", "token", "expires_at", "created_at")
         read_only_fields = ("token", "created_at")
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "username")  # samo ovo
