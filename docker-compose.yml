@@ -49,21 +49,11 @@ services:
         condition: service_started
     networks:
       - mynetwork
-
-  client:
-    build:
-      context: ./uks-client
-    container_name: angular-client
-    volumes:
-      - ./uks-client/dist:/dist
-    networks:
-      - mynetwork
-
+  
   nginx:
     build:
-      context: ./uks-nginx
-    volumes:
-      - ./uks-client/dist:/usr/share/nginx/html
+      context: .
+      dockerfile: uks-nginx/Dockerfile
     container_name: nginx-proxy
     depends_on:
       - web

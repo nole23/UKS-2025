@@ -22,7 +22,7 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='127.0.0.1,localhost',
+    default='localhost,127.0.0.1,nginx,nginx-proxy,web',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
