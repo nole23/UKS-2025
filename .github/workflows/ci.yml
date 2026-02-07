@@ -12,12 +12,34 @@ jobs:
   docker-build:
     runs-on: ubuntu-latest
 
-    env:
-      RELEASE_TAG: latest  # Po specifikaciji, verzije nisu potrebne
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      
+      - name: Read current version
+        id: get_version
+        run: |
+          VERSION=$(cat version.txt)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+      
+      - name: Bump patch version
+        id: bump_version
+        run: |
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          patch=$((patch+1))
+          NEW_VERSION="$major.$minor.$patch"
+          echo $NEW_VERSION > version.txt
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "Bumped version to $NEW_VERSION"
+
+      - name: Commit new version and tag
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add version.txt
+          git commit -m "Bump version to $NEW_VERSION"
+          git tag "v$NEW_VERSION"
+          git push origin HEAD:master --tags
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -27,15 +49,10 @@ jobs:
 
       - name: Build and push Django server image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:latest ./uks-server
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:latest
-
-      - name: Build and push Angular client image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-client:latest ./uks-client
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-client:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:${{ env.NEW_VERSION }} ./uks-server
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:${{ env.NEW_VERSION }}
 
       - name: Build and push Nginx image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest ./uks-nginx
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:${{ env.NEW_VERSION }} ./uks-nginx
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:${{ env.NEW_VERSION }}
