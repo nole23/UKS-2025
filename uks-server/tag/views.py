@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -15,19 +16,26 @@ class RepositoryTagListView(APIView):
     GET  /api/repositories/<pk>/tags/
     """
     def get(self, request, pk):
-        tags = Tag.objects.filter(repository_id=pk).order_by("-updated_at")
-        return Response([
-            {
-                "id": t.id,
-                "name": t.name,
-                "digest": t.digest,
-                "compressed_size_mb": t.compressed_size_mb,
-                "os_arch": t.os_arch,
-                "created_at": t.created_at,
-                "updated_at": t.updated_at
-            }
-            for t in tags
-        ])
+        cache_key = f"repo_tags_{pk}"
+        tags_data = cache.get(cache_key)  # pokušavamo da dobijemo već serijalizovane podatke
+        if not tags_data:
+            tags = Tag.objects.filter(repository_id=pk).order_by("-updated_at")
+            # Serijalizujemo u listu dict-ova
+            tags_data = [
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "digest": t.digest,
+                    "compressed_size_mb": t.compressed_size_mb,
+                    "os_arch": t.os_arch,
+                    "created_at": t.created_at,
+                    "updated_at": t.updated_at
+                }
+                for t in tags
+            ]
+            cache.set(cache_key, tags_data, 300)  # sada čuvamo JSON-like listu, pickle neće pucati
+
+        return Response(tags_data)
 
     """
     POST /api/repositories/<pk>/tags/
@@ -56,6 +64,8 @@ class RepositoryTagListView(APIView):
         repo.last_pushed_at = timezone.now()
         repo.save(update_fields=["last_pushed_at"])
 
+        cache.delete(f"repo_tags_{pk}")
+        cache.delete(f"repo_{pk}")
         return Response({
             "id": tag.id,
             "name": tag.name,
@@ -77,5 +87,10 @@ class RepositoryTagListView(APIView):
         last_tag = Tag.objects.filter(repository=repo).order_by("-updated_at").first()
         repo.last_pushed_at = last_tag.updated_at if last_tag else None
         repo.save(update_fields=["last_pushed_at"])
+
+        cache.delete(f"repo_tags_{repo_id}")
+        cache.delete(f"repo_{repo_id}")
+        cache.delete_pattern("all_public_repos*")
+        cache.delete_pattern("search_*")
 
         return Response({"message": "Tag deleted"}, status=200)

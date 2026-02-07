@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from rest_framework import generics, permissions, status
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -112,7 +113,30 @@ class UserProfileDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
+        """
+        Vrati stvarnu instancu modela UserProfile.
+        Ovo je obavezno da bi integracioni testovi i DRF serializer radili.
+        """
         return self.request.user.profile
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Override retrieve da podrži keširanje serijalizovanih podataka.
+        """
+        user_id = request.user.id
+        cache_key = f"user_profile_{user_id}"
+
+        profile_data = cache.get(cache_key)
+        if not profile_data:
+            # Dohvati instancu modela
+            profile = self.get_object()
+            # Serijalizuj
+            serializer = self.get_serializer(profile)
+            profile_data = serializer.data
+            # Sačuvaj u keš 5 minuta
+            cache.set(cache_key, profile_data, 300)
+
+        return Response(profile_data)
 
 
 # --------- Profile Update ---------
