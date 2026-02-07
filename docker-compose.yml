@@ -23,6 +23,12 @@ services:
     container_name: redis-cache
     networks:
       - mynetwork
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command: redis-server --save "" --appendonly no
 
   web:
     build:
@@ -40,13 +46,14 @@ services:
       DATABASE_PASSWORD: 123456789
       DATABASE_HOST: db
       DATABASE_PORT: 5432
+      REDIS_URL: redis://redis-cache:6379/1
     volumes:
       - ./uks-server:/app
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
     networks:
       - mynetwork
   

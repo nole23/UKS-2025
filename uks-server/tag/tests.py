@@ -3,8 +3,6 @@ from unittest.mock import MagicMock, patch
 from rest_framework import status
 from .views import RepositoryTagListView  # prilagodi putanju
 from repository.models import Repository
-from .models import Tag
-from django.utils import timezone
 
 
 class RepositoryTagListViewTests(TestCase):

@@ -160,6 +160,36 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # --------------------------------------------------
+# SETTING REDIS
+# --------------------------------------------------
+# Detect test environment
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1")
+
+IS_TESTING = 'test' in sys.argv or os.getenv('DJANGO_TESTING') == '1'
+
+if IS_TESTING:
+    # ✅ TEST: bez Redisa, sve u memoriji
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache"
+        }
+    }
+else:
+    # ✅ DEV / DOCKER / PROD: Redis
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SERIALIZER": "django_redis.serializers.json.JSONSerializer",
+                "IGNORE_EXCEPTIONS": True,  # Redis padne → app radi dalje
+            }
+        }
+    }
+
+
+# --------------------------------------------------
 # INTERNATIONALIZATION
 # --------------------------------------------------
 
