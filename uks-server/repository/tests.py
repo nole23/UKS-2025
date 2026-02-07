@@ -2,7 +2,104 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 from rest_framework import status
 from repository.views import RepositoryListView, RepositoryDetailView
+from .models import Repository, RepositoryCollaborator
+from .serializer import RepositorySerializer
 
+
+class RepositorySerializerUnitTests(TestCase):
+
+    def setUp(self):
+        # Kreiramo "mock" owner i organization
+        self.mock_owner = MagicMock()
+        self.mock_owner.username = "mockuser"
+
+        self.mock_org = MagicMock()
+        self.mock_org.name = "mockorg"
+
+        # Kreiramo mock repository instancu
+        self.mock_repo = MagicMock()
+        self.mock_repo.id = 1
+        self.mock_repo.name = "TestRepo"
+        self.mock_repo.description = "A test repository"
+        self.mock_repo.visibility = "public"
+        self.mock_repo.created_at = "2026-02-07T12:00:00Z"
+        self.mock_repo.owner = self.mock_owner
+        self.mock_repo.organization = self.mock_org
+        self.mock_repo.last_pushed_at = "2026-02-07T13:00:00Z"
+        self.mock_repo.stars_count = 5
+        self.mock_repo.pulls_count = 2
+
+    def test_repository_serializer_fields(self):
+        serializer = RepositorySerializer(instance=self.mock_repo)
+
+        data = serializer.data
+        self.assertEqual(data["id"], 1)
+        self.assertEqual(data["name"], "TestRepo")
+        self.assertEqual(data["description"], "A test repository")
+        self.assertEqual(data["visibility"], "public")
+        self.assertEqual(data["created_at"], "2026-02-07T12:00:00Z")
+        self.assertEqual(data["owner_username"], "mockuser")
+        self.assertEqual(data["organization_name"], "mockorg")
+        self.assertEqual(data["last_pushed_at"], "2026-02-07T13:00:00Z")
+        self.assertEqual(data["stars_count"], 5)
+        self.assertEqual(data["pulls_count"], 2)
+
+
+class RepositoryModelMockTests(TestCase):
+
+    def setUp(self):
+        # Sve "instancirane" stvari su MagicMock
+        self.user = MagicMock()
+        self.user.username = "mockuser"
+
+        self.org = MagicMock()
+        self.org.name = "mockorg"
+
+    def test_repository_creation(self):
+        repo = MagicMock(spec=Repository)
+        repo.name = "TestRepo"
+        repo.description = "A test repository"
+        repo.visibility = "public"
+        repo.owner = self.user
+        repo.organization = self.org
+
+        self.assertEqual(repo.name, "TestRepo")
+        self.assertEqual(repo.visibility, "public")
+        self.assertEqual(repo.owner.username, "mockuser")
+        self.assertEqual(repo.organization.name, "mockorg")
+
+    def test_collaborator_creation(self):
+        repo = MagicMock(spec=Repository)
+        user = MagicMock()
+        user.username = "collabuser"
+
+        collaborator = MagicMock(spec=RepositoryCollaborator)
+        collaborator.repository = repo
+        collaborator.user = user
+        collaborator.role = "admin"
+
+        self.assertEqual(collaborator.role, "admin")
+        self.assertEqual(collaborator.repository, repo)
+        self.assertEqual(collaborator.user.username, "collabuser")
+
+    def test_collaborator_unique_together(self):
+        repo = MagicMock(spec=Repository)
+        user = MagicMock()
+        user.username = "user2"
+
+        collaborator1 = MagicMock(spec=RepositoryCollaborator)
+        collaborator1.repository = repo
+        collaborator1.user = user
+        collaborator1.role = "read"
+
+        collaborator2 = MagicMock(spec=RepositoryCollaborator)
+        collaborator2.repository = repo
+        collaborator2.user = user
+        collaborator2.role = "read"
+
+        self.assertEqual(collaborator1.repository, collaborator2.repository)
+        self.assertEqual(collaborator1.user, collaborator2.user)
+    
 
 class RepositoryListViewUnitTests(TestCase):
 
