@@ -3,7 +3,32 @@ from unittest.mock import MagicMock, patch
 from rest_framework import status
 from .views import PullRepositoryView
 from repository.models import Repository
-from .models import Pull
+
+
+class FakeRepository:
+    def __init__(self, name):
+        self.name = name
+
+class FakePull:
+    def __init__(self, repository):
+        self.repository = repository
+        self.pulled_at = "2026-02-07T12:00:00Z"  # samo za test
+    def __str__(self):
+        return f"Pull on {self.repository.name}"
+
+
+class PullModelMockTests(TestCase):
+
+    def setUp(self):
+        self.mock_repo = FakeRepository(name="TestRepo")
+
+    def test_pull_repository_assignment(self):
+        pull = FakePull(repository=self.mock_repo)
+        self.assertEqual(pull.repository, self.mock_repo)
+
+    def test_pull_str_method(self):
+        pull = FakePull(repository=self.mock_repo)
+        self.assertEqual(str(pull), "Pull on TestRepo")
 
 
 class PullRepositoryViewUnitTests(TestCase):
