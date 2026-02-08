@@ -61,8 +61,6 @@ class UserProfileModelUnitTests(TestCase):
         user = User.objects.create_user(username="test", email="test@example.com", password="pass")
         profile = UserProfile.objects.create(
             user=user,
-            first_name="Test",
-            last_name="Test",
             company_name="Test Corp"
         )
         self.assertEqual(profile.user, user)
