@@ -1,1 +1,56 @@
-<p>defautl-private-repository works!</p>
+@if (user != null) {
+    <div class="visibility-update">
+        <form>
+
+            <div class="visibility-section">
+
+                <!-- LEFT -->
+                <div class="visibility-half">
+                    <input
+                        type="radio"
+                        id="visibility-public"
+                        name="visibility"
+                        [value]="true"
+                        [(ngModel)]="account.default_repository"
+                        (change)="isChange()"
+                    />
+                    <label for="visibility-public">
+                        <strong>Public</strong>
+                        <span>Repository is visible to everyone</span>
+                    </label>
+                </div>
+
+                <!-- RIGHT -->
+                <div class="visibility-half">
+                    <input
+                        type="radio"
+                        id="visibility-private"
+                        name="visibility"
+                        [value]="false"
+                        [(ngModel)]="account.default_repository"
+                        (change)="isChange()"
+                    />
+                    <label for="visibility-private">
+                        <strong>Private</strong>
+                        <span>Only you can see this repository</span>
+                    </label>
+                </div>
+            </div>
+            <!-- Poruka o uspehu ili grešci -->
+            @if (message) {
+                <div [ngClass]="{'success-message': !error, 'error-message': error}">
+                    {{ message }}
+                </div>
+            }
+            <button type="submit" (click)="updateProfile()" [disabled]="!isDisabledBtn">
+                @if (!isSpiner) {
+                    <span>Save</span>
+                }
+                @else {
+                    <span class="spinner"></span>
+                }
+            </button>
+        </form>
+    </div>
+
+}
