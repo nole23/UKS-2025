@@ -87,17 +87,17 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             'id': self.user.id,
             'username': self.user.username,
             'email': self.user.email,
+            "first_name": self.user.first_name,
+            "last_name": self.user.last_name,
             # PROFILE DATA
             "profile": {
-                "first_name": profile.first_name if profile else "",
-                "last_name": profile.last_name if profile else "",
                 "bio": profile.bio if profile else "",
                 "avatar": profile.avatar.url if profile and profile.avatar else None,
-
                 "company_name": profile.company_name if profile else "",
                 "company_email": profile.company_email if profile else "",
                 "company_location": profile.company_location if profile else "",
                 "company_website": profile.company_website if profile else "",
+                "default_repository": profile.default_repository if profile else "",
             }
         }
         return data
