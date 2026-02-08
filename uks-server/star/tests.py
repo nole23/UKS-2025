@@ -1,10 +1,7 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 from rest_framework import status
-from star.views import StarRepositoryView, StarredRepositoriesView
-from repository.models import Repository
-from star.models import Star
-from repository.serializer import RepositorySerializer
+from .views import StarRepositoryView, StarredRepositoriesView
 
 
 class StarRepositoryViewTests(TestCase):

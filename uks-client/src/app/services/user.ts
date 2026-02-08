@@ -108,4 +108,21 @@ export class UserService {
 
     return this.http.get(url, { params });
   }
+
+  updatePropertyOfRepository(updateDefaultRepository: any): Observable<any> {
+    const url = `${this.apiUrl}profile/update/`;
+
+    return this.http.put(url, updateDefaultRepository).pipe(
+      tap((response: any) => {
+        // Ako postoji user u localStorage, ažuriraj njegove podatke
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          // Pretpostavljamo da API vraća novi profile objekat u response
+          user.profile = { ...user.profile, ...response };
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+      })
+    );
+  }
 }

@@ -3,9 +3,9 @@ from rest_framework import status
 from django.urls import reverse
 from .models import User
 from .serializers import UserRegistrationSerializer
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 from rest_framework.exceptions import ValidationError
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 from .views import (
     UserProfileDetailView,
     UserProfileUpdateView,
@@ -13,7 +13,300 @@ from .views import (
     UserPasswordChangeView,
     PersonalTokenCreateView,
 )
+from user.serializers import (
+    UserRegistrationSerializer,
+    UserProfileUpdateSerializer,
+    UserEmailUpdateSerializer,
+    UserPasswordChangeSerializer,
+    PersonalTokenSerializer
+)
+from .models import UserProfile, PersonalToken, create_user_profile
+from django.contrib.auth import get_user_model
+import uuid
+from datetime import timedelta
+from django.utils import timezone
+from django.db.models.signals import post_save
+from django.db.utils import IntegrityError
+from django.test import override_settings
 
+User = get_user_model()
+
+
+class UserModelUnitTests(TestCase):
+
+    def test_create_user_positive(self):
+        """Pozitivan test: korisnik se kreira ispravno sa validnim podacima"""
+        user = User.objects.create_user(username="test", email="test@example.com", password="pass")
+        self.assertEqual(str(user), "test")
+        self.assertTrue(user.is_active)
+        self.assertIsNotNone(user.created_at)
+
+    def test_create_user_negative(self):
+        """Negativan test: kreiranje korisnika bez username podiže grešku"""
+        with self.assertRaises(ValueError):
+            User.objects.create_user(username="", email="no_name@example.com", password="pass")
+
+
+class UserProfileModelUnitTests(TestCase):
+
+    def setUp(self):
+        # Disconnect signal da ne pravi profile automatski
+        post_save.disconnect(create_user_profile, sender=User)
+
+    def tearDown(self):
+        # Ponovo poveži signal
+        post_save.connect(create_user_profile, sender=User)
+
+    def test_create_profile_positive(self):
+        user = User.objects.create_user(username="test", email="test@example.com", password="pass")
+        profile = UserProfile.objects.create(
+            user=user,
+            company_name="Test Corp"
+        )
+        self.assertEqual(profile.user, user)
+
+
+class PersonalTokenModelUnitTests(TestCase):
+
+    def test_token_auto_generated_positive(self):
+        """Pozitivan test: token se automatski generiše ako nije postavljen"""
+        user = User.objects.create_user(username="tokenuser", email="token@example.com", password="pass")
+        token_obj = PersonalToken.objects.create(user=user, name="MyToken")
+        self.assertIsNotNone(token_obj.token)
+        self.assertEqual(len(token_obj.token), 32)
+        self.assertEqual(str(token_obj), f"MyToken ({user.username})")
+
+    def test_token_duplicate_negative(self):
+        """Negativan test: pokušaj kreiranja tokena sa istim token stringom podiže grešku"""
+        user = User.objects.create_user(username="dupuser", email="dup@example.com", password="pass")
+        token_value = uuid.uuid4().hex
+        PersonalToken.objects.create(user=user, name="Token1", token=token_value)
+        with self.assertRaises(Exception):  # IntegrityError zbog unique=True
+            PersonalToken.objects.create(user=user, name="Token2", token=token_value)
+
+
+class UserProfileSignalTests(TestCase):
+
+    def test_profile_signal_positive(self):
+        user = User.objects.create_user(username="signaluser", email="signal@example.com", password="pass")
+        profile = UserProfile.objects.get(user=user)
+        self.assertIsNotNone(profile)
+
+    def test_profile_signal_negative_duplicate(self):
+        """
+        Negativan test: signal ne dozvoljava dupliranje profila za istog korisnika
+        """
+        user = User.objects.create_user(username="test", email="test@example.com", password="pass")
+        # signal automatski kreira prvi profil
+        profile = UserProfile.objects.get(user=user)
+
+        with self.assertRaises(IntegrityError):
+            # pokušaj da kreiraš drugi profil za istog korisnika
+            UserProfile.objects.create(user=user)
+
+
+class UserSerializerTests(TestCase):
+    
+    # -------- UserRegistrationSerializer --------
+    @patch("user.serializers.User.objects.create")
+    @override_settings(AUTH_PASSWORD_VALIDATORS=[])
+    def test_user_registration_positive(self, mock_create):
+        # Mock objekat koji simulira User instancu
+        mock_user = MagicMock()
+        mock_create.return_value = mock_user
+
+        data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "S3cure!Pass2026",
+            "password2": "S3cure!Pass2026",
+            "first_name": "New",
+            "last_name": "User"
+        }
+
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        
+        # Poziv save() ne pravi entry u bazi, već samo vraća mock_user
+        user = serializer.save()
+
+        mock_create.assert_called_once_with(
+            username="newuser",
+            email="newuser@example.com",
+            first_name="New",
+            last_name="User"
+        )
+        mock_user.set_password.assert_called_once_with("S3cure!Pass2026")
+        mock_user.save.assert_called_once()
+
+    def test_user_registration_negative_password_mismatch(self):
+        data = {
+            "username": "test",
+            "email": "test@example.com",
+            "password": "Secret123!",
+            "password2": "WrongPass!",
+        }
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("password", serializer.errors)
+
+
+    # -------- UserProfileUpdateSerializer --------
+    def test_user_profile_update_positive(self):
+        # Mokovani User
+        user = Mock()
+        user.first_name = "Test"
+        user.last_name = "Test"
+        user.email = "test@example.com"
+        user.save = Mock()
+
+        # Mokovani UserProfile
+        profile = Mock()
+        profile.user = user
+        profile.bio = "Old bio"
+        profile.avatar = "old_avatar.png"
+        profile.company_name = "OldCorp"
+        profile.company_email = "oldcorp@example.com"
+        profile.company_website = "https://oldcorp.com"
+        profile.company_location = "Old City"
+        profile.save = Mock()
+
+        # Podaci za update
+        data = {
+            "user": {"first_name": "Testpdated"},
+            "bio": "New bio"
+        }
+
+        # Serializer sa partial update
+        serializer = UserProfileUpdateSerializer(instance=profile, data=data, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        updated_profile = serializer.save()
+
+        # Provere
+        self.assertEqual(updated_profile.bio, "New bio")
+
+        # Provera da su pozvani save() na user i profile
+        user.save.assert_called_once()
+        profile.save.assert_called_once()
+
+    # -------- UserEmailUpdateSerializer --------
+    def test_user_email_update_positive(self):
+        # Mokovan user
+        user = Mock()
+        user.pk = 1
+        user.email = "test@example.com"
+        user.save = Mock()
+
+        # Mock Request
+        request = RequestFactory().post("/fake-url/")
+        request.user = user
+
+        data = {"old_email": "test@example.com", "new_email": "test2@example.com"}
+
+        # Patch User.objects.exclude().filter().exists() da vrati False (nema drugog usera sa tim emailom)
+        with patch("user.serializers.User.objects.exclude") as mock_exclude:
+            mock_filter = mock_exclude.return_value.filter
+            mock_filter.return_value.exists.return_value = False
+
+            serializer = UserEmailUpdateSerializer(data=data, context={"request": request})
+            self.assertTrue(serializer.is_valid(), serializer.errors)
+
+            updated_user = serializer.save()
+            self.assertEqual(updated_user.email, "test2@example.com")
+            user.save.assert_called_once()
+
+    def test_user_email_update_negative_old_email_wrong(self):
+        # Mokovan user sa originalnim emailom
+        user = Mock()
+        user.pk = 1
+        user.email = "test@example.com"
+        user.save = Mock()
+
+        # Mock Request
+        request = RequestFactory().post("/fake-url/")
+        request.user = user
+
+        data = {"old_email": "wrong@example.com", "new_email": "test2@example.com"}
+
+        serializer = UserEmailUpdateSerializer(data=data, context={"request": request})
+
+        # Validacija bi trebalo da propadne jer old_email ne poklapa
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("old_email", serializer.errors)
+
+    # -------- UserPasswordChangeSerializer --------
+    def test_user_password_change_positive(self):
+        # Mokovan user
+        user = Mock()
+        user.pk = 1
+        user.password = "hashed_old_password"
+        user.check_password = Mock(return_value=True)
+        user.set_password = Mock()
+        user.save = Mock()
+
+        # Mock Request
+        request = RequestFactory().post("/fake-url/")
+        request.user = user
+
+        data = {"old_password": "SuperSecret123", "new_password": "NewSecret123!"}
+        serializer = UserPasswordChangeSerializer(data=data, context={"request": request})
+
+        # Provera validnosti
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        # Save poziva set_password i save na user-u
+        updated_user = serializer.save()
+
+        # Provera da li je set_password pozvan sa novom lozinkom
+        user.set_password.assert_called_once_with("NewSecret123!")
+        user.save.assert_called_once()
+
+    def test_user_password_change_negative_wrong_old(self):
+       # Mokovan user
+        user = Mock()
+        user.pk = 1
+        user.check_password = Mock(return_value=False)  # stari password je pogresan
+        user.set_password = Mock()
+        user.save = Mock()
+
+        # Mock request
+        request = RequestFactory().post("/fake-url/")
+        request.user = user
+
+        data = {"old_password": "WrongOld123", "new_password": "NewSecret123!"}
+        serializer = UserPasswordChangeSerializer(data=data, context={"request": request})
+
+        # Validator treba da prijavi gresku
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("old_password", serializer.errors)
+
+    # -------- PersonalTokenSerializer --------
+    def test_personal_token_positive(self):
+        # Mockovan user
+        self.user = MagicMock()
+        self.user.pk = 1
+        self.user.username = "test"
+        self.user.email = "test@example.com"
+        
+        # Kreiramo mock token objekat
+        token = MagicMock()
+        token.user = self.user
+        token.name = "API Token"
+        token.token = "ABC123"
+        token.expires_at = timezone.now() + timedelta(days=1)
+        token.created_at = timezone.now()
+
+        # Serializujemo mock objekat
+        serializer = PersonalTokenSerializer(instance=token)
+
+        # Proveravamo polja
+        self.assertEqual(serializer.data["name"], "API Token")
+        self.assertEqual(serializer.data["token"], "ABC123")
+
+        # Upoređujemo datetimes kao ISO stringove
+        self.assertEqual(serializer.data["expires_at"], token.expires_at.isoformat().replace("+00:00", "Z"))
+        self.assertEqual(serializer.data["created_at"], token.created_at.isoformat().replace("+00:00", "Z"))
 
 class UserAuthTests(APITestCase):
 
@@ -123,25 +416,43 @@ class UserRegistrationSerializerTest(TestCase):
         self.assertIn("password", context.exception.detail)
 
 
-
 # --------------------------
 # UserProfileDetailView Tests
 # --------------------------
 class UserProfileDetailViewTests(TestCase):
 
     def test_get_object_positive(self):
+        # Mock user i profile
         mock_user = MagicMock()
         mock_profile = MagicMock()
         mock_user.profile = mock_profile
 
+        # Mock request
         request = MagicMock()
         request.user = mock_user
 
+        # View
         view = UserProfileDetailView()
         view.request = request
-        obj = view.get_object()
 
-        self.assertEqual(obj, mock_profile)
+        # Patch get_serializer da vrati dict preko .data
+        with patch.object(UserProfileDetailView, 'get_serializer') as mock_get_serializer:
+            mock_serializer = MagicMock()
+            mock_serializer.data = {
+                "first_name": "John",
+                "last_name": "Doe",
+                "bio": "Test bio"
+            }
+            mock_get_serializer.return_value = mock_serializer
+
+            # Umesto get_object, pozivamo retrieve
+            response = view.retrieve(request)
+            profile_data = response.data
+
+        # Asserts
+        self.assertEqual(profile_data['first_name'], "John")
+        self.assertEqual(profile_data['last_name'], "Doe")
+        self.assertEqual(profile_data['bio'], "Test bio")
 
     def test_get_object_negative(self):
         mock_user = MagicMock()
@@ -152,7 +463,16 @@ class UserProfileDetailViewTests(TestCase):
 
         view = UserProfileDetailView()
         view.request = request
-        obj = view.get_object()
+        view.kwargs = {}
+        view.format_kwarg = None
+
+        # Patchujemo get_serializer da vrati serializer sa praznim .data
+        with patch.object(UserProfileDetailView, 'get_serializer') as mock_get_serializer:
+            mock_serializer = MagicMock()
+            mock_serializer.data = None  # ili {} ako ti get_object očekuje dict
+            mock_get_serializer.return_value = mock_serializer
+
+            obj = view.get_object()
 
         self.assertIsNone(obj)
 

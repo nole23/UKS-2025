@@ -4,20 +4,44 @@ on:
   pull_request:
     branches:
       - master
-  workflow_run:
-    workflows: [CI Workflow - Feature to Develop]
-    types: [completed]
 
 jobs:
   docker-build:
     runs-on: ubuntu-latest
 
-    env:
-      RELEASE_TAG: latest  # Po specifikaciji, verzije nisu potrebne
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # mora da povuče sve tagove
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Get latest tag
+        id: get_version
+        run: |
+          git fetch --tags
+          if git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            LATEST_TAG=$(git describe --tags --abbrev=0)
+          else
+            LATEST_TAG="v1.0.0"
+          fi
+          echo "LATEST_TAG=${LATEST_TAG}" >> $GITHUB_ENV
+          echo "Using latest tag: $LATEST_TAG"
+
+      - name: Bump patch version
+        id: bump_version
+        run: |
+          VERSION=${LATEST_TAG#v}  # skini 'v' sa početka
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          patch=$((patch+1))
+          NEW_TAG="v$major.$minor.$patch"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+          echo "Bumped version to $NEW_TAG"
+
+      - name: Tag and push
+        run: |
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -27,15 +51,18 @@ jobs:
 
       - name: Build and push Django server image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:latest ./uks-server
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:latest
-
-      - name: Build and push Angular client image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-client:latest ./uks-client
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-client:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:${{ env.NEW_TAG }} ./uks-server
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-server:${{ env.NEW_TAG }}
 
       - name: Build and push Nginx image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest ./uks-nginx
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:latest
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:${{ env.NEW_TAG }} -f uks-nginx/Dockerfile .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:${{ env.NEW_TAG }}
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.NEW_TAG }}
+          name: Release ${{ env.NEW_TAG }}
+          draft: false
+          prerelease: false
