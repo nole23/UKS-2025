@@ -6,7 +6,7 @@ WORKDIR /app
 COPY uks-client ./  
 
 # Instaliraj dependencies
-RUN npm install --legacy-peer-deps  # ili samo npm install
+RUN npm install --legacy-peer-deps
 
 # Buildaj Angular
 RUN npm run build -- --output-path=dist
@@ -16,7 +16,7 @@ FROM nginx:alpine
 
 # Kopiraj build u NGINX
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY uks-nginx/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

@@ -56,7 +56,7 @@ jobs:
 
       - name: Build and push Nginx image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:${{ env.NEW_TAG }} ./uks-nginx
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:${{ env.NEW_TAG }} -f uks-nginx/Dockerfile .
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/uks-nginx:${{ env.NEW_TAG }}
 
       - name: Create GitHub Release
