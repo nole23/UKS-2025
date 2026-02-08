@@ -34,8 +34,8 @@ jobs:
 
       - name: Commit new version and tag
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.name "nole23"
+          git config user.email "nole0223@gmail.com"
           git add version.txt
           git commit -m "Bump version to $NEW_VERSION"
           git tag "v$NEW_VERSION"
