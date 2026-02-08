@@ -70,6 +70,7 @@ jobs:
           - name: Run Django migrations and unit tests
             run: |
                 cd uks-server
+                export DJANGO_TESTING=1
                 source venv/bin/activate
                 python manage.py migrate --noinput
                 python manage.py test

@@ -37,12 +37,13 @@ class UserProfileDetailSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source="user.first_name")
     last_name = serializers.CharField(source="user.last_name")
     projects = serializers.SerializerMethodField()
+    default_repository = serializers.BooleanField()
 
     class Meta:
         model = UserProfile
         fields = ("username", "email", "first_name", "last_name", "bio", "avatar",
                   "company_name", "company_email", "company_website", "company_location",
-                  "projects")
+                  "projects", "default_repository")
 
     def get_projects(self, obj):
         from repository.models import Repository
@@ -59,12 +60,14 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = (
             "first_name", "last_name", "bio", "avatar",
-            "company_name", "company_email", "company_website", "company_location", "email"
+            "company_name", "company_email", "company_website", "company_location", "email",
+            "default_repository"
         )
 
     def update(self, instance, validated_data):
         user_data = validated_data.pop("user", {})
 
+        print(user_data)
         # Provera email-a
         new_email = user_data.get("email")
         if new_email and User.objects.exclude(pk=instance.user.pk).filter(email=new_email).exists():

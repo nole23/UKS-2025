@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -23,6 +24,8 @@ class PullRepositoryView(APIView):
         Pull.objects.create(repository=repo)
         repo.pulls_count += 1
         repo.save(update_fields=["pulls_count"])
+
+        cache.delete(f"repo_{pk}")
 
         return Response({"message": "Pulled successfully"}, status=201)
 
