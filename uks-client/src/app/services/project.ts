@@ -9,18 +9,15 @@ export class ProjectService {
 
   constructor(private http: HttpClient) {}
 
-  getProjects(query: string = '', visibility: 'all' | 'public' | 'private' = 'all', sortingFilter = 'r'): Observable<any> {
-    let params = new HttpParams();
-    if(query) params = params.set('q', query);
-    
-    // šaljemo samo ako nije "all"
-    if (visibility !== 'all') {
-      params = params.set('visibility', visibility);
-    }
-
-    if (sortingFilter != 'r') {
-      params = params.set('sorting', sortingFilter);
-    }
+  getProjects(
+    query: string = '',
+    visibility: 'all' | 'public' | 'private' = 'all',
+    sorting: 'latest' | 'oldest' | 'random' = 'latest'
+  ): Observable<any> {
+    const params = new HttpParams()
+      .set('q', query ?? '')
+      .set('visibility', visibility)
+      .set('sorting', sorting);
     return this.http.get(this.apiUrl + 'repositories/search', { params, withCredentials: true });
   }
 
@@ -54,5 +51,13 @@ export class ProjectService {
 
   removeCollaborators(repoId: number, userId: number) {
     return this.http.delete<any>(this.apiUrl + `repositories/${repoId}/collaborators/${userId}/`, { withCredentials: true });
+  }
+
+  editVisibilityRepository(repoId: number, visibilityType: string): Observable<any> {
+    return this.http.post<any>(this.apiUrl + `repositories/update/visibility`, {repoId: repoId, visibility: visibilityType});
+  }
+
+  deleteRepository(repoId: number): Observable<any> {
+    return this.http.delete<any>(this.apiUrl + `repositories/${repoId}/`, {withCredentials: true});
   }
 }

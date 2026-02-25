@@ -1,26 +1,28 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { Component } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { environment } from '../../../environments/environment';
+import { ModalDialogComponent } from '../../helpers/modal-dialog-component/modal-dialog-component';
+import { AuthService } from '../../services/auth';
+import { finalize } from 'rxjs';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HttpClientModule],
+  imports: [CommonModule, ReactiveFormsModule, ModalDialogComponent],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
 export class LoginComponent {
   loginForm: FormGroup;
-  message = '';
-  isError = false;
   isLoading = false;
-  private apiUrl = environment.apiUrl;
-  
+  showModal = false;
+  modalMessage = '';
+  modalTitle = '';
+  modelType = '';
+  redirect = '';  
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private router: Router) {
+  constructor(private fb: FormBuilder, private router: Router, private auth: AuthService) {
     this.loginForm = this.fb.group({
       username: [''],
       password: ['']
@@ -31,38 +33,46 @@ export class LoginComponent {
     if (this.loginForm.invalid) return;
 
     this.isLoading = true;
-    this.http.post<any>(this.apiUrl + 'login/', this.loginForm.value, { withCredentials: true })
+    this.auth.login(this.loginForm.value)
+      .pipe(finalize(() => this.isLoading = false))  
       .subscribe({
-        next: (res) => {
-          localStorage.setItem('access', res.access);
-          localStorage.setItem('refresh', res.refresh);
-          localStorage.setItem('user', JSON.stringify(res.user));
-          this.message = 'Login successful!';
-          this.isError = false;
-          this.isLoading = false;
+        next: (res: any) => {
+          if (res.must_change_password) {
+            this.modalTitle = 'Change password';
+            this.modalMessage = 'You must change your password before continuing';
+            this.modelType = "warning";
+            this.redirect = '/change-password'
+          } else {
+            this.modalTitle = 'Successfully';
+            this.modalMessage = 'You have successfully logged in!';
+            this.modelType = "info";
+            this.redirect = '/home'
+          }
 
-          let countdown = 3; // 5 sekundi countdown
-          this.message = `Login success! Redirect in ${countdown}s`;
-
-          const interval = setInterval(() => {
-            countdown--;
-            if (countdown > 0) {
-              this.message = `Login success! Redirect in ${countdown}s`;
-            } else {
-              clearInterval(interval);
-              this.router.navigate(['/home']);
-            }
-          }, 1000);
+          this.showModal = true;
         },
-        error: (err) => {
-          this.message = 'Login failed!';
-          this.isError = true;
-          this.isLoading = false;
+        error: (err: any) => {
+          this.modalTitle = 'Login failed!'
+          this.modalMessage  = err.message;
+          this.modelType = "error";
+          this.showModal = true;
+          this.redirect = '';
         }
-      });
+      })
   }
 
   goHome() {
-    this.router.navigate(['/']); // ili '/home' ako tako zoves home route
+    this.router.navigate(['/']);
+  }
+
+  onModalOk() {
+    this.showModal = false;
+    this.modalMessage = '';
+    this.modalTitle = '';
+    this.modelType = '';
+
+    if (this.redirect !== '') {
+      this.router.navigate([this.redirect])
+    }
   }
 }

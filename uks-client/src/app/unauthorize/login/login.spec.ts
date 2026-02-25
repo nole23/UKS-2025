@@ -46,11 +46,10 @@ describe('LoginComponent', () => {
   });
 
   it('should have isError and isLoading as false initially', () => {
-    expect(component.isError).toBeFalse();
     expect(component.isLoading).toBeFalse();
   });
 
   it('should have empty message initially', () => {
-    expect(component.message).toBe('');
+    expect(component.modalMessage).toBe('');
   });
 });
