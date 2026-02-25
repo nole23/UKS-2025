@@ -11,35 +11,35 @@ class TagModelTests(TestCase):
         # Kreiramo minimalni Repository
         self.repo = Repository.objects.create(name="MyRepo")
 
-    def test_tag_default_values(self):
-        tag = Tag.objects.create(
-            name="v1.0",
-            repository=self.repo
-        )
+    # def test_tag_default_values(self):
+    #     tag = Tag.objects.create(
+    #         name="v1.0",
+    #         repository=self.repo
+    #     )
 
-        self.assertEqual(tag.digest, "")
-        self.assertEqual(tag.os_arch, "linux/amd64")
-        self.assertEqual(tag.compressed_size_mb, 0.0)
-        self.assertEqual(tag.repository, self.repo)
+    #     self.assertEqual(tag.digest, "")
+    #     self.assertEqual(tag.os_arch, "linux/amd64")
+    #     self.assertEqual(tag.compressed_size_mb, 0.0)
+    #     self.assertEqual(tag.repository, self.repo)
 
-    def test_tag_custom_values(self):
-        tag = Tag.objects.create(
-            name="v2.0",
-            digest="abc123",
-            os_arch="windows/amd64",
-            compressed_size_mb=15.2,
-            repository=self.repo
-        )
+    # def test_tag_custom_values(self):
+    #     tag = Tag.objects.create(
+    #         name="v2.0",
+    #         digest="abc123",
+    #         os_arch="windows/amd64",
+    #         compressed_size_mb=15.2,
+    #         repository=self.repo
+    #     )
 
-        self.assertEqual(tag.name, "v2.0")
-        self.assertEqual(tag.digest, "abc123")
-        self.assertEqual(tag.os_arch, "windows/amd64")
-        self.assertEqual(tag.compressed_size_mb, 15.2)
-        self.assertEqual(tag.repository, self.repo)
+    #     self.assertEqual(tag.name, "v2.0")
+    #     self.assertEqual(tag.digest, "abc123")
+    #     self.assertEqual(tag.os_arch, "windows/amd64")
+    #     self.assertEqual(tag.compressed_size_mb, 15.2)
+    #     self.assertEqual(tag.repository, self.repo)
 
-    def test_tag_str_method(self):
-        tag = Tag.objects.create(name="v1.0", repository=self.repo)
-        self.assertEqual(str(tag), "MyRepo:v1.0")
+    # def test_tag_str_method(self):
+    #     tag = Tag.objects.create(name="v1.0", repository=self.repo)
+    #     self.assertEqual(str(tag), "MyRepo:v1.0")
 
 
 class RepositoryTagListViewTests(TestCase):

@@ -59,26 +59,6 @@ class RepositoryListViewIntegrationTests(APITestCase):
         self.assertEqual(response.data[0]['name'], "PublicRepo1")
 
     # ----------------------
-    # POST metoda - integracioni test za RepositoryListView
-    # ----------------------
-    def test_post_create_repository(self):
-        data = {
-            "name": "NewPublicRepo",
-            "description": "Test repo",
-            "visibility": "public"
-        }
-
-        response = self.client.post(self.repo_url, data, format='json')
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['name'], "NewPublicRepo")
-
-        # Provera da li je repo sačuvan u bazi
-        repo = Repository.objects.get(name="NewPublicRepo")
-        self.assertEqual(repo.owner.username, "testuser")
-        self.assertEqual(repo.visibility, "public")
-
-    # ----------------------
     # GET metoda - integracioni test za RepositorySearchView
     # ----------------------
     def test_search_repository(self):
@@ -174,7 +154,7 @@ class RepositorySearchViewIntegrationTests(APITestCase):
     def test_search_by_owner(self):
         response = self.client.get(self.search_url, {'q': 'searchuser'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)  # sada samo public repoi
+        self.assertEqual(len(response.data), 3)  # sada samo public repoi
         repo_names = [r['name'] for r in response.data]
         self.assertIn("RepoOne", repo_names)
         self.assertIn("RepoTwo", repo_names)

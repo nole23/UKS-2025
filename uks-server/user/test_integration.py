@@ -2,6 +2,7 @@ from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
 from user.models import User, PersonalToken
+from django.contrib.auth.models import Group
 
 
 class UserViewsIntegrationTest(APITestCase):
@@ -9,11 +10,11 @@ class UserViewsIntegrationTest(APITestCase):
     def setUp(self):
         self.register_url = reverse('register')
         self.login_url = reverse('token_obtain_pair')
+        Group.objects.create(name="Superadmin")
 
     # -------------------
     # Registration tests
     # -------------------
-
     def test_register_user_integration(self):
         """Integracioni test registracije korisnika"""
         data = {
@@ -219,3 +220,114 @@ class UserProfileIntegrationTests(APITestCase):
         data = {"name": ""}
         response = self.client.post(self.token_create_url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+class UserExtraIntegrationTests(APITestCase):
+
+    def setUp(self):
+        # Kreiranje grupa
+        Group.objects.create(name="Superadmin")
+        Group.objects.create(name="Administrator")
+        Group.objects.create(name="OrdinaryUser")
+
+        # Kreiranje superadmina
+        self.superadmin = User.objects.create_user(
+            username="superadmin",
+            email="superadmin@example.com",
+            password="SuperPass123"
+        )
+        
+        # Dodeli Superadmin grupu
+        superadmin_group = Group.objects.get(name="Superadmin")
+        self.superadmin.groups.add(superadmin_group)
+        self.superadmin.save()
+
+        # Login superadmin
+        login_url = reverse('token_obtain_pair')
+        data = {"username": "superadmin", "password": "SuperPass123"}
+        response = self.client.post(login_url, data, format='json')
+        self.token = response.data['access']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')
+
+    # ----------------------
+    # GenerateUserPasswordView
+    # ----------------------
+    def test_generate_user_password_superadmin(self):
+        url = reverse('reset-password')
+        data = {"username": "superadmin"}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("password", response.data)
+
+    # ----------------------
+    # UserListView
+    # ----------------------
+    def test_user_list_view(self):
+        url = reverse('user-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+
+    # ----------------------
+    # CreateAdminView
+    # ----------------------
+    def test_create_admin(self):
+        url = reverse('create-admin-view')
+        data = {"username": "newadmin", "email": "newadmin@example.com", "password": "Admin123!"}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(User.objects.filter(username="newadmin").exists())
+
+    # ----------------------
+    # UserListAllView
+    # ----------------------
+    def test_user_list_all_view(self):
+        url = reverse('user-list-all')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+
+    # ----------------------
+    # UserDetailView
+    # ----------------------
+    def test_user_detail_view(self):
+        # Kreiranje običnog korisnika
+        user = User.objects.create_user(username="detailuser", email="detail@example.com", password="Pass123")
+        url = reverse('user-detail-view', kwargs={"username": "detailuser"})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], "detailuser")
+
+    # ----------------------
+    # RoleView GET
+    # ----------------------
+    def test_role_list_get(self):
+        url = reverse('role-list-all')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("roles", response.data)
+        self.assertIsInstance(response.data["roles"], list)
+
+    # ----------------------
+    # RoleView POST
+    # ----------------------
+    def test_role_update_post(self):
+        # Kreiranje običnog korisnika
+        user = User.objects.create_user(username="roleuser", email="role@example.com", password="Pass123")
+        url = reverse('role-list-all')
+        data = {"username": "roleuser", "new_role": "Administrator"}
+        response = self.client.post(url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertTrue(user.groups.filter(name="Administrator").exists())
+
+    # ----------------------
+    # PersonalTokenListView
+    # ----------------------
+    def test_personal_token_list_view(self):
+        # Kreiranje tokena
+        PersonalToken.objects.create(name="Token1", user=self.superadmin)
+        url = reverse('personal-tokens-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(response.data) >= 1)
+        self.assertEqual(response.data[0]['name'], "Token1")

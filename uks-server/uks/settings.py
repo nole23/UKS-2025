@@ -57,6 +57,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',  # sve po defaultu zaštićeno
+        "user.permissions.MustChangePasswordBlocker"
     ),
 }
 
