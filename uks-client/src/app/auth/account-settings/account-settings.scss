@@ -244,3 +244,46 @@ button {
   background-color: #f5f5f5;
   font-weight: bold;
 }
+
+
+.child {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + 100px);
+  transform: translate(-50%, -50%);
+}
+
+.role-box{
+    background:#f5f7fa;
+    border:1px solid #e2e8f0;
+    border-radius:10px;
+    padding:14px 18px;
+    margin:10px 0;
+}
+
+.role-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.role-name{
+    font-weight:700;
+    text-transform:uppercase;
+}
+
+.role-actions {
+  button {
+    padding:6px 14px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    background:#1677ff;
+    color:white;
+  }
+
+}
+
+.role-actions button:hover{
+    opacity:.85;
+}

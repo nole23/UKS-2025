@@ -58,6 +58,21 @@
         </label>
       </div>
 
+      <!-- OFFICIAL REPOSITORY (samo za admina/superadmina) -->
+      @if (userService.isAdminOrSuperadmin()) {
+        <div class="visibility-section">
+          <label class="visibility-title">Official repository</label>
+          <label class="visibility-option">
+            <input
+              type="checkbox"
+              name="official"
+              [(ngModel)]="repository.official"
+            />
+            <span>Create as Official Repository</span>
+          </label>
+        </div>
+      }
+
       <!-- ACTIONS -->
       <div class="actions">
         <button type="button" class="btn-cancel" (click)="cancel()">Cancel</button>

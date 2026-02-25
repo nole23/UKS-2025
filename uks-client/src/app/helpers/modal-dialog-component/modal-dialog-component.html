@@ -1,0 +1,24 @@
+<div class="modal-backdrop">
+    <div class="modal" [ngClass]="{
+      'msg-info': type === 'info',
+      'msg-warning': type === 'warning',
+      'msg-error': type === 'error'
+    }">
+      @if (title) {
+        <h3 [innerHTML]="title"></h3>
+      }
+
+      @if (message) {
+        <p [innerHTML]="message"></p>
+      }
+
+      @if (innerDiv) {
+        <div [innerHTML]="innerDiv"></div>
+      }
+
+      @if (isCancelVisibility) {
+        <button class="btn-width btn-left btn-red" (click)="cancelClicked()">Cancel</button>
+      }
+      <button [ngClass]="isCancelVisibility ? 'btn-width btn-right' : ''" (click)="okClicked()">OK</button>
+    </div>
+</div>
