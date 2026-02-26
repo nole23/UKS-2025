@@ -1,17 +1,28 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
-import { AuthService } from '../../services/auth';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { UserService } from '../../services/user';
+import { ModalDialogComponent } from '../../helpers/modal-dialog-component/modal-dialog-component';
+import { finalize } from 'rxjs';
+import { AuthService } from '../../services/auth';
+import { TableComponent } from '../../helpers/table-component/table-component';
+import { TableColumn } from '../../helpers/interface/table-column';
 
 @Component({
   selector: 'app-account-settings',
-  imports: [FormsModule, CommonModule, RouterModule],
+  imports: [FormsModule, CommonModule, RouterModule, ModalDialogComponent, TableComponent],
   templateUrl: './account-settings.html',
   styleUrl: './account-settings.scss',
 })
 export class AccountSettings implements OnInit {
+
+  modalTitle: string = '';
+  modalMessage: string = '';
+  modelType: string = '';
+  isRedirect: boolean = false;
+
+  isMessage: boolean = false;
 
   email: string = '';
   user: any = null;
@@ -40,33 +51,70 @@ export class AccountSettings implements OnInit {
   showTokenForm = false;
   newTokenName = '';
   settingsOpen = true;
-  selectedMenu: string | null = null;
+  selectedMenu: string = 'accountInfo';
 
   loading = false;       // spinner flag
-  message: string = '';  // poruka koja se prikazuje
-  error: boolean = false; // da li je poruka greška
-
-  emailMessage: string = '';  // poruka koja se prikazuje
-  emailError: boolean = false; // da li je poruka greška
 
   showPasswordModal: boolean = false; // flag za popup
   simulatedEmailContent: string = ''; // sadržaj emaila
 
-  messagePassword = '';
-  errorPassword = false;
-
   isLoadingToken = false;
-  messageToken: string = '';
-  errorToken: boolean = false;
+  loadData: boolean = true;
 
-  constructor(private auth: AuthService, private userService: UserService) {}
+  tokenColumns: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'token', label: 'Token' },
+  ];
+
+  roleColumns: TableColumn[] = [
+    { key: 'name', label: 'Role Name' },
+    { key: 'checked', label: 'Select Role', type: 'radio' }, // Opciono
+  ];
+
+  roles: any = [];
+  isShowRole: boolean = false;
+  isRoleLoader: boolean = false;
+
+  selectRole: string = '';
+
+  constructor(public userService: UserService, private route: ActivatedRoute, private auth: AuthService) {}
 
   ngOnInit(): void {
-    this.user = this.auth.getUsername()
-    this.email = this.user.email;
-    this.account = { ...this.user.profile };
+    let username = this.route.snapshot.paramMap.get('username');
 
-    this.getTokens();
+    this.userService.filterUserByUsername(username ?? '')
+      .subscribe({
+        next: (res) => {
+          this.user = res;
+          this.loadData = false
+
+          this.email = this.user.email;
+          this.account = { ...this.user, ...this.user.profile };
+
+          this.getRole();
+          this.getTokens();
+        },
+        error: () => {
+          this.modalTitle = 'Server unavailable';
+          this.modalMessage = 'Server is currently unavailable, please log out and try again in a few moments.';
+          this.modelType = 'Error';
+          this.isMessage = true;
+          this.isRedirect = true;
+        }
+      });
+  }
+
+  private getRole() {
+    if (this.userService.isAdminOrSuperadmin()) {
+      this.userService.getCurrnetRoles().subscribe({
+        next: (res) => {
+          this.roles = res.roles.map((role: string) => ({
+            name: role,
+            checked: this.user.role == role
+          }))
+        }
+      })
+    }
   }
 
   toggleSettings() {
@@ -88,23 +136,23 @@ export class AccountSettings implements OnInit {
     }
 
     this.loading = true;  // start spinner
-    this.message = '';    // reset poruke
-    this.error = false;
 
-    this.userService.updateProfile(this.account).subscribe({
-      next: () => {
-        this.loading = false;
-        this.message = 'We have successfully completed the update!';
-        this.error = false;
-
-        // opcionalno: osveži lokalni account iz response
-      },
-      error: (err) => {
-        this.loading = false;
-        this.message = 'An error occurred while updating.';
-        this.error = true;
-      }
-    });
+    this.userService.updateProfile(this.account)
+      .pipe(finalize(() => this.loading = false))
+      .subscribe({
+        next: () => {
+          this.modalTitle = '';
+          this.modalMessage = 'We have successfully completed the update!';
+          this.modelType = 'info';
+          this.isMessage = true;
+        },
+        error: () => {
+          this.modalTitle = '';
+          this.modalMessage = 'An error occurred while updating.';
+          this.modelType = 'error';
+          this.isMessage = true;
+        }
+      });
   }
 
   hasAccountChanges(): boolean {
@@ -131,29 +179,27 @@ export class AccountSettings implements OnInit {
     if (!this.hasEmailChanges()) return;
 
     this.loading = true;
-    this.emailMessage = '';
-    this.emailError = false;
 
-    this.userService.updateEmail(this.emailUpdate.old_email, this.emailUpdate.new_email).subscribe({
-      next: (res) => {
-        this.loading = false;
-        this.emailMessage = 'Email successfully updated!';
-        this.emailError = false;
+    this.userService.updateEmail(this.emailUpdate.old_email, this.emailUpdate.new_email)
+      .pipe(finalize(() => this.loading = false))
+      .subscribe({
+        next: () => {
+          this.user.email = this.emailUpdate.new_email
+          this.email = this.user.email;
 
-        this.user.email = this.emailUpdate.new_email
-        this.email = this.user.email;
-
-        // resetovanje polja
-        this.emailUpdate.old_email = '';
-        this.emailUpdate.new_email = '';
-      },
-      error: (err) => {
-        this.loading = false;
-        this.emailMessage = 'There was an error updating your email.';
-        this.emailError = true;
-        console.error(err);
-      }
-    });
+          this.modalTitle = '';
+          this.modalMessage = 'Email successfully updated!';
+          this.modelType = 'info';
+          this.isMessage = true;
+        },
+        error: (err) => {
+          const errors = Object.values(err.error).flat().join(" | ");
+          this.modalTitle = '';
+          this.modalMessage = errors;
+          this.modelType = 'error';
+          this.isMessage = true;
+        }
+      });
   }
 
   hasEmailChanges(): boolean {
@@ -199,32 +245,69 @@ export class AccountSettings implements OnInit {
   }
 
   resetPassword2() {
-    if (!this.hasPasswordChanges()) return;
-
+    if (!this.hasPasswordChanges()) return
     this.loading = true;
-    this.messagePassword = '';
-    this.errorPassword = false;
 
-    this.userService.changePassword(this.updatePassword.old_password, this.updatePassword.old_password).subscribe({
-      next: () => {
-        this.loading = false;
-        this.messagePassword = 'Lozinka je uspešno promenjena!';
-        this.errorPassword = false;
+    this.userService.changePassword(this.updatePassword.old_password, this.updatePassword.new_password)
+      .pipe(finalize(() => this.loading = false))
+      .subscribe({
+        next: () => {
+          this.modalTitle = '';
+          this.modalMessage = 'Password changed successfully!';
+          this.modelType = 'info';
+          this.isMessage = true;
+        },
+        error: (err) => {
+          this.modalTitle = 'An error occurred while changing the password.';
+          this.modalMessage = err.message;
+          this.modelType = 'error';
+          this.isMessage = true;
+        }
+      });
+  }
 
-        // reset forme
-        this.updatePassword.old_password = '';
-        this.updatePassword.new_password = '';
+    getNewPassword(password: string) {
+      // sadržaj emaila u pre-formatu, ali dugme ostaje stilizovano
+      this.simulatedEmailContent = `
+        <pre style="
+          background-color:#f5f5f5;
+          padding:15px;
+          border-radius:5px;
+          font-family: monospace;
+          white-space: pre-wrap;
+        ">
+          Dear user, 
 
-        setTimeout(() => {
-          this.auth.logout(); // automatski logout i redirect na /login
-        }, 1500); // 1.5 sekunde delay
-      },
-      error: (err) => {
-        this.loading = false;
-        this.messagePassword = 'Došlo je do greške pri promeni lozinke.';
-        this.errorPassword = true;
-      }
-    });
+          We have received your password reset request.
+          Your new password is: ${password}
+        </pre>
+      `;
+      this.showPasswordModal = true;
+    }
+
+  resetPassword3() {
+    this.loading = true;
+
+    this.userService.generateNewPassword(this.user.username)
+      .pipe(finalize(() => this.loading = false))
+      .subscribe({
+        next: (res: any) => {
+          if (res.message === 'success') {
+            this.getNewPassword(res.password);
+          } else {
+            this.modalTitle = 'We were unable to generate the code.';
+            this.modalMessage = res.message;
+            this.modelType = 'warning';
+            this.isMessage = true;
+          }
+        },
+        error: (err: any) => {
+          this.modalTitle = 'We were unable to generate the code.';
+          this.modalMessage = err.message;
+          this.modelType = 'error';
+          this.isMessage = true;
+        }
+      })
   }
 
   hasPasswordChanges() {
@@ -243,43 +326,103 @@ export class AccountSettings implements OnInit {
 
   generateToken() {
     if (!this.newTokenName) return;
-
     this.loading = true;
-    this.messageToken = '';
-    this.errorToken = false;
 
-    this.userService.createPersonalToken(this.newTokenName).subscribe({
-      next: (token) => {
-        this.loading = false;
-        this.tokens.push(token); // odmah dodaj novi token u tabelu
-        this.messageToken = 'New token successfully created!';
-        this.newTokenName = ''; // reset input polja
+    this.userService.createPersonalToken(this.newTokenName)
+      .pipe(finalize(() => this.loading = false))
+      .subscribe({
+        next: (token) => {
+          this.tokens.push(token); // odmah dodaj novi token u tabelu
 
-        setTimeout(() => {
-          this.showTokenForm = false;
-        }, 1500); // 1.5 sekunde delay
-      },
-      error: (err) => {
-        this.loading = false;
-        this.messageToken = 'An error occurred while creating the token.';
-        this.errorToken = true;
-      }
-    });
+          this.modalTitle = '';
+          this.modalMessage = 'New token successfully created!';
+          this.modelType = 'info';
+          this.isMessage = true;
+        },
+        error: () => {
+          this.modalTitle = '';
+          this.modalMessage = 'An error occurred while creating the token.';
+          this.modelType = 'info';
+          this.isMessage = true;
+        }
+      });
   }
 
   getTokens() {
     this.isLoadingToken = true;
-    this.userService.getPersonalTokens().subscribe({
+    this.userService.getPersonalTokens()
+    .pipe(finalize(() => this.isLoadingToken = false))
+    .subscribe({
       next: (res) => {
         this.tokens = res;
-        this.isLoadingToken = false;
       },
-      error: (err) => this.tokens = [],
+      error: () => this.tokens = [],
     })
   }
 
   private normalize(value: any): string {
     if (value === null || value === undefined) return '';
     return String(value).trim().toLowerCase();
+  }
+
+  onModalOk() {
+    this.isMessage = false;
+    this.modalTitle = '';
+    this.modalMessage = '';
+    this.modelType = '';
+
+    // reset password change form
+    this.updatePassword.old_password = '';
+    this.updatePassword.new_password = '';
+
+    // reset email change form
+    this.emailUpdate.old_email = '';
+    this.emailUpdate.new_email = '';
+
+    this.newTokenName = '';
+
+    if (this.isRedirect) {
+      this.auth.logout();
+    }
+  }
+
+  isPersonal() {
+    if (this.user) {
+      return this.userService.getCurrentUser()?.username === this.user.username;
+    }
+    return false;
+  }
+
+  getType() {
+    if (this.user) {
+      return this.user.role
+    }
+    return null
+  }
+
+  onRoleSelected(row: any) {
+    this.selectRole = row.name;
+  }
+
+  updateRole() {
+    if (!this.selectRole) return;
+
+    this.isRoleLoader = true;
+
+    this.userService.changeRole({username: this.user.username, new_role: this.selectRole})
+      .pipe(finalize(() => this.isRoleLoader = false))
+      .subscribe({
+        next: () => {
+          this.modalMessage = 'Role updated';
+          this.modelType = 'info';
+          this.isMessage = true;
+          this.user.role = this.selectRole
+        },
+        error: () => {
+          this.modalMessage = 'Role not updated, server error.';
+          this.modelType = 'error';
+          this.isMessage = true;
+        }
+      })  
   }
 }

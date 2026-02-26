@@ -85,7 +85,6 @@ export class DefautlPrivateRepository implements OnInit {
 
   isChange() {
     this.isDisabledBtn = this.hasAccountChanges();
-    console.log(this.isDisabledBtn)
   }
 
   getUser() {

@@ -12,5 +12,13 @@
     </button>
   </form>
 
-  <p class="message" [ngClass]="{'error': isError}">{{message}}</p>
+  <!-- Modal -->
+  <app-modal-dialog-component 
+    *ngIf="showModal" 
+    [title]="modalTitle" 
+    [message]="modalMessage"
+    [type]="modelType"
+    (ok)="onModalOk()">
+  </app-modal-dialog-component>
 </div>
+

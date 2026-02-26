@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from user.views import UserRegistrationView, UserListView, MyTokenObtainPairView, UserProfileDetailView, PersonalTokenListView, UserProfileUpdateView, PersonalTokenCreateView, UserEmailUpdateView, UserPasswordChangeView
+from user.views import GenerateUserPasswordView, RoleView, UserDetailView, UserListAllView, UserRegistrationView, CreateAdminView, UserListView, MyTokenObtainPairView, UserProfileDetailView, PersonalTokenListView, UserProfileUpdateView, PersonalTokenCreateView, UserEmailUpdateView, UserPasswordChangeView
 from repository.views import RepositoryListView, RepositorySearchView, DockerInfoView, RepositoryDetailView, RepositoryCollaboratorView
 from star.views import StarRepositoryView, StarredRepositoriesView
 from pull.views import PullRepositoryView
@@ -26,16 +26,21 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/register/', UserRegistrationView.as_view(), name='register'),
     path('api/login/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path("api/docker/info", DockerInfoView.as_view()),
     path('api/profile/', UserProfileDetailView.as_view(), name='profile-detail'),
     path('api/profile/update/', UserProfileUpdateView.as_view(), name='profile-update'),
     path('api/profile/email/', UserEmailUpdateView.as_view(), name='profile-email-update'),
     path('api/profile/password/', UserPasswordChangeView.as_view(), name='profile-password-change'),
+    path('api/profile/generate-password/', GenerateUserPasswordView.as_view(), name='reset-password'),
     path("api/profile/search/", UserListView.as_view(), name="user-list"),
+    path("api/profile/create-admin", CreateAdminView.as_view(), name="create-admin-view"),
+    path("api/profile/users/", UserListAllView.as_view(), name="user-list-all"),
+    path("api/profile/users/<str:username>/", UserDetailView.as_view(), name="user-detail-view"),
+    path("api/profile/roles/", RoleView.as_view(), name="role-list-all"),
     path('api/personal-tokens/', PersonalTokenCreateView.as_view(), name='personal-tokens'),
     path('api/personal-tokens/list/', PersonalTokenListView.as_view(), name='personal-tokens-list'),
     path("api/repositories", RepositoryListView.as_view(), name='repository-list'),
     path("api/repositories/search", RepositorySearchView.as_view(), name='repository-search'),
+    path("api/docker/info", DockerInfoView.as_view()),
     path("api/repositories/<int:pk>/", RepositoryDetailView.as_view()),
     path("api/repositories/<int:pk>/star/", StarRepositoryView.as_view()),
     path("api/repositories/starred/", StarredRepositoriesView.as_view()),

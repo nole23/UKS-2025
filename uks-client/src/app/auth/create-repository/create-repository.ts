@@ -1,5 +1,6 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { UserService } from '../../services/user';
 
 @Component({
   selector: 'app-create-repository',
@@ -18,8 +19,11 @@ export class CreateRepository {
     name: '',
     description: '',
     visibility: '',
-    organization_id: ''
+    organization_id: '',
+    official: ''
   }
+
+  constructor(public userService: UserService) {}
 
   cancel() {
     this.close.emit();

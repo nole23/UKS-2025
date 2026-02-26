@@ -1,9 +1,11 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 from rest_framework import status
-from repository.views import RepositoryListView, RepositoryDetailView
+from django.db.models import Q
+from repository.views import RepositoryListView, RepositoryDetailView, RepositorySearchView, RepositoryCollaboratorView
 from .models import Repository, RepositoryCollaborator
 from .serializer import RepositorySerializer
+from django.contrib.auth.models import User
 
 
 class RepositorySerializerUnitTests(TestCase):
@@ -160,31 +162,49 @@ class RepositoryListViewUnitTests(TestCase):
     # -------------------
     # POST metoda - pozitivni slučaj
     # -------------------
+    @patch("repository.views.safe_delete_pattern")
     @patch("repository.views.RepositorySerializer")
     @patch("repository.views.Organization.objects.get")
-    def test_post_create_repository_positive(self, mock_org_get, mock_serializer_class):
-        mock_org_get.return_value = None  # ne koristimo org u ovom testu
+    def test_post_create_repository_positive(self, mock_org_get, mock_serializer_class, mock_safe_delete):
+        mock_org_get.return_value = None
 
+        # mock user objekat
+        mock_user = MagicMock()
+        mock_user.username = "testuser"
+        mock_user.is_superadmin = False
+
+        # serializer mock
         mock_serializer = MagicMock()
         mock_serializer.is_valid.return_value = True
-        mock_serializer.data = {"name": "NewRepo", "owner": 1}
-        mock_serializer.save.return_value = None
+        mock_serializer.data = {"name": "testuser/NewRepo", "owner": 1}
         mock_serializer_class.return_value = mock_serializer
 
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = mock_user
         request.data = {"name": "NewRepo", "visibility": "public"}
 
         view = RepositoryListView()
         response = view.post(request)
 
+        # status
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data, {"name": "NewRepo", "owner": 1})
-        
-        # Ovo je ključna promena
-        mock_serializer_class.assert_called_once_with(data=request.data)
-        
-        mock_serializer.save.assert_called_once_with(owner="fake_user", organization=None)
+
+        # serializer poziv
+        mock_serializer_class.assert_called_once_with(data={
+            "name": "testuser/NewRepo",
+            "visibility": "public",
+            "official": False
+        })
+
+        # save poziv
+        mock_serializer.save.assert_called_once_with(
+            owner=mock_user,
+            organization=None,
+            official=False
+        )
+
+        # cache invalidation
+        self.assertEqual(mock_safe_delete.call_count, 2)
 
 
     # -------------------
@@ -207,78 +227,112 @@ class RepositoryListViewUnitTests(TestCase):
         self.assertEqual(response.data, {"error": "Organization not found"})
 
 
-from unittest import TestCase
-from unittest.mock import MagicMock, patch
-from rest_framework import status
-from repository.views import RepositorySearchView
-from django.db.models import Q
-
 class RepositorySearchViewUnitTests(TestCase):
 
     # -------------------
     # GET metoda - pozitivni slučaj
     # -------------------
+    @patch("repository.views.cache")
+    @patch("repository.views.RepositoryCollaborator.objects")
     @patch("repository.views.Repository.objects")
     @patch("repository.views.RepositorySerializer")
-    def test_get_search_repositories_positive(self, mock_serializer_class, mock_objects):
-        # Kreiramo "duboki" mock QuerySet
-        mock_queryset = MagicMock()
-        # Svaki poziv filter vraća isti mock (chainable)
-        mock_queryset.filter.return_value = mock_queryset
-        mock_queryset.order_by.return_value = mock_queryset
+    def test_get_search_repositories_positive(self, mock_serializer_class, mock_repo_objects, mock_collab_objects, mock_cache):
+        # ---------- USER ----------
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.is_superadmin = False
+        mock_user.is_admin.return_value = False
 
-        mock_objects.filter.return_value = mock_queryset
+        # ---------- CACHE MISS ----------
+        mock_cache.get.return_value = None
 
+        # ---------- COLLAB IDS ----------
+        mock_collab_qs = MagicMock()
+        mock_collab_qs.values_list.return_value = []
+        mock_collab_objects.filter.return_value = mock_collab_qs
+
+        # ---------- QUERYSET ----------
+        mock_qs = MagicMock()
+        mock_qs.filter.return_value = mock_qs
+        mock_qs.order_by.return_value = mock_qs
+        mock_qs.prefetch_related.return_value = mock_qs
+
+        mock_repo_objects.filter.return_value = mock_qs
+
+        # ---------- SERIALIZER ----------
         mock_serializer = MagicMock()
         mock_serializer.data = [{"name": "Repo1"}, {"name": "Repo2"}]
         mock_serializer_class.return_value = mock_serializer
 
+        # ---------- REQUEST ----------
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = mock_user
         request.query_params = {"q": "Repo"}
 
+        # ---------- VIEW ----------
         view = RepositorySearchView()
         response = view.get(request)
 
-        # Proveravamo rezultat
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data == [{"name": "Repo1"}, {"name": "Repo2"}]
+        # ---------- ASSERT ----------
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [{"name": "Repo1"}, {"name": "Repo2"}])
 
-        # Proveravamo da su filter i order_by pozvani bar jednom
-        mock_objects.filter.assert_called()  # filter visibility
-        mock_queryset.filter.assert_called()  # filter Q objekt
-        mock_queryset.order_by.assert_called()  # order_by na finalnom QuerySet
+        mock_repo_objects.filter.assert_called()      # base filter
+        self.assertTrue(mock_qs.filter.called)        # search filter
+        self.assertTrue(mock_qs.order_by.called)      # sorting
 
-        mock_serializer_class.assert_called_once_with(mock_queryset, many=True)
+        mock_serializer_class.assert_called_once_with(mock_qs, many=True)
+        mock_cache.set.assert_called_once()           # cache stored
 
 
     # -------------------
     # GET metoda - negativni slučaj (prazna pretraga)
     # -------------------
+    @patch("repository.views.cache")
+    @patch("repository.views.RepositoryCollaborator.objects")
     @patch("repository.views.Repository.objects")
     @patch("repository.views.RepositorySerializer")
-    def test_get_search_repositories_negative(self, mock_serializer_class, mock_objects):
-        mock_queryset = MagicMock()
-        mock_objects.filter.return_value.order_by.return_value = mock_queryset
+    def test_get_search_repositories_negative(self, mock_serializer_class, mock_repo_objects, mock_collab_objects, mock_cache):
+        # cache miss
+        mock_cache.get.return_value = None
 
+        # collaborator ids
+        mock_collab_objects.filter.return_value.values_list.return_value = []
+
+        # queryset chain
+        mock_queryset = MagicMock()
+        mock_repo_objects.filter.return_value = mock_queryset
+        mock_queryset.filter.return_value = mock_queryset
+        mock_queryset.order_by.return_value = mock_queryset
+        mock_queryset.prefetch_related.return_value = mock_queryset
+
+        # serializer
         mock_serializer = MagicMock()
         mock_serializer.data = []
         mock_serializer_class.return_value = mock_serializer
 
+        # mock user
+        mock_user = MagicMock()
+        mock_user.id = 1
+        mock_user.is_superadmin = False
+        mock_user.is_admin.return_value = False
+
+        # request
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = mock_user
         request.query_params = {"q": ""}
 
+        # call view
         view = RepositorySearchView()
         response = view.get(request)
 
+        # assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, [])
 
-        mock_objects.filter.assert_called()
-        mock_objects.filter.return_value.order_by.assert_called_once_with('-created_at')
+        mock_repo_objects.filter.assert_called()
+        mock_queryset.order_by.assert_called_once_with("-created_at")
         mock_serializer_class.assert_called_once_with(mock_queryset, many=True)
-
 
 
 class RepositoryDetailViewTests(TestCase):
@@ -317,8 +371,15 @@ class RepositoryDetailViewTests(TestCase):
         mock_repo.owner = "other_user"
         mock_repo_objects.get.return_value = mock_repo
 
+        # mock user
+        mock_user = MagicMock()
+        mock_user.__eq__.return_value = False  # nije owner
+
+        # groups.filter().exists() -> False
+        mock_user.groups.filter.return_value.exists.return_value = False
+
         request = MagicMock()
-        request.user = "fake_user"  # nije owner
+        request.user = mock_user
 
         view = RepositoryDetailView()
         response = view.delete(request, pk=1)
@@ -343,14 +404,6 @@ class RepositoryDetailViewTests(TestCase):
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
         mock_repo.delete.assert_called_once()
-
-
-from unittest import TestCase
-from unittest.mock import MagicMock, patch
-from rest_framework import status
-from repository.views import RepositoryCollaboratorView
-from repository.models import Repository, RepositoryCollaborator
-from django.contrib.auth.models import User
 
 
 class RepositoryCollaboratorViewTests(TestCase):
@@ -416,11 +469,14 @@ class RepositoryCollaboratorViewTests(TestCase):
     @patch("repository.views.Repository.objects")
     def test_post_collaborator_forbidden(self, mock_repo_objects):
         mock_repo = MagicMock()
-        mock_repo.owner = "other_user"
+        mock_repo.owner = MagicMock()
         mock_repo_objects.get.return_value = mock_repo
 
+        mock_user = MagicMock()
+        mock_user.groups.filter.return_value.exists.return_value = False
+
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = mock_user
         request.data = {"user_id": 123}
 
         view = RepositoryCollaboratorView()
@@ -458,11 +514,14 @@ class RepositoryCollaboratorViewTests(TestCase):
     @patch("repository.views.Repository.objects")
     def test_delete_collaborator_forbidden(self, mock_repo_objects):
         mock_repo = MagicMock()
-        mock_repo.owner = "other_user"
+        mock_repo.owner = MagicMock()  # owner nije isti user
         mock_repo_objects.get.return_value = mock_repo
 
+        mock_user = MagicMock()
+        mock_user.groups.filter.return_value.exists.return_value = False
+
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = mock_user
 
         view = RepositoryCollaboratorView()
         response = view.delete(request, pk=1, user_id=123)

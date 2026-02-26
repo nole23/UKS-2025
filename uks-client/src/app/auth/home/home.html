@@ -9,7 +9,7 @@
 
       <div class="account-text">
         <div class="account-email">{{ username?.username }}</div>
-        <div class="account-plan">Docker Personal</div>
+        <div class="account-plan">Docker Personal - {{userRole}}</div>
       </div>
     </div>
 
@@ -20,8 +20,8 @@
       </li>
 
       <!-- SETTINGS -->
-      <li class="menu-item settings-header" (click)="toggleSettings()">
-        <span>Settings</span>
+      <li class="menu-item settings-header" (click)="openPanel('settings')">
+        <span>Repository settings</span>
         <span class="arrow" [class.open]="settingsOpen">▾</span>
       </li>
 
@@ -31,6 +31,38 @@
             <a style="cursor: pointer;" (click)="openBody('default-private')">Default private</a>
           </li>
         </ul>
+      }
+
+      @if (userService.isAdminOrSuperadmin()) {
+        <!-- SETTINGS -->
+        <li class="menu-item settings-header" (click)="openPanel('administration')">
+          <span>Administration page</span>
+          <span class="arrow" [class.open]="administrationPage">▾</span>
+        </li>
+
+        @if (administrationPage) {
+          <ul class="submenu">
+            <li>
+              <a style="cursor: pointer;" (click)="openBody('all-users')">Show all users</a>
+            </li>
+          </ul>
+        }
+      }
+
+      @if (userService.isSuperAdmin()) {
+        <!-- SETTINGS -->
+        <li class="menu-item settings-header" (click)="openPanel('analytics')">
+          <span>Analytics page</span>
+          <span class="arrow" [class.open]="analitycsPage">▾</span>
+        </li>
+
+        @if (analitycsPage) {
+          <ul class="submenu">
+            <li>
+              <a style="cursor: pointer;" (click)="openBody('new-administrator')">Find all logs</a>
+            </li>
+          </ul>
+        }
       }
     </ul>
   </aside>
@@ -46,7 +78,7 @@
           <span class="avatar-letter">{{ username.username.charAt(0).toUpperCase() }}</span>
           <div class="dropdown-menu" [class.show]="dropdownOpen">
             <a (click)="openLink('home')">My Profile</a>
-            <a (click)="openLink('account-settings')">Account Settings</a>
+            <a (click)="openLink(`account-settings/${username.username}`)">Account Settings</a>
             <div class="logout">
               <a (click)="logout()">Sing out</a>
             </div>
@@ -77,9 +109,9 @@
         </select>
 
         <select [(ngModel)]="sortingFilter" (change)="search()">
-          <option value="r">Randomly</option>
-          <option value="l">Latest</option>
-          <option value="o">Oldest</option>
+          <option value="random">Randomly</option>
+          <option value="latest">Latest</option>
+          <option value="oldest">Oldest</option>
         </select>
 
         <button (click)="search()" [disabled]="isLoading">
@@ -100,30 +132,11 @@
         </div>
 
         @if (projects.length > 0) {
-          <table class="projects-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Last Updated</th>
-                <th>Visibility</th>
-                <th>Owner</th>
-                <th>Organization</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (repo of projects; track repo) {
-                <tr class="project-row" (click)="openRepository(repo)">
-                  <td>{{repo.name}}</td>
-                  <td>{{repo.created_at | date:'short'}}</td>
-                  <td>
-                    <span class="visibility" [ngClass]="repo.visibility">{{repo.visibility}}</span>
-                  </td>
-                  <td>{{repo.owner_username}}</td>
-                  <td>{{repo.organization_name || '-'}}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <app-table-component
+            [columns]="repoColumns"
+            [data]="projects"
+            [rowAction]="openRepository.bind(this)">
+          </app-table-component>
         }
 
         @if (isLoading) {
@@ -153,9 +166,16 @@
 
     @if (typeBody == 'open-repo') {
       <div class="body-title">
-        <h2>{{username.username + '/' + openRepo.name}}</h2>
+        <h2>{{openRepo.name}}</h2>
       </div>
-      <app-repository-details [repository]="openRepo"></app-repository-details>
+      <app-repository-details [repository]="openRepo" (repositoryChange)="onRepoChanged($event)"></app-repository-details>
+    }
+
+    @if (typeBody === 'all-users') {
+      <div class="body-title">
+        <h2></h2>
+      </div>
+      <app-show-all-users></app-show-all-users>
     }
 
     <!-- FOOTER -->

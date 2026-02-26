@@ -35,6 +35,8 @@ class Repository(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_pushed_at = models.DateTimeField(null=True, blank=True)
 
+    official = models.BooleanField(default=False)
+
     def __str__(self):
         return self.name
 

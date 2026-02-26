@@ -2,14 +2,17 @@ import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+import { BrowserCache } from './browser-cache';
 
 @Injectable({
   providedIn: 'root',
 })
 export class UserService {
   private apiUrl = environment.apiUrl;
+  private roleKey = 'userRole';
+  private userKey = 'user';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private bc: BrowserCache) {}
 
   /**
    * Update user profile
@@ -71,8 +74,7 @@ export class UserService {
 
     return this.http.patch(url, payload).pipe(
       tap(() => {
-        // opcionalno: možeš ovde dodati logiku za localStorage ili poruku
-        console.log('Password updated (simulirano localStorage)');
+        
       })
     );
   }
@@ -94,9 +96,7 @@ export class UserService {
   createPersonalToken(name: string): Observable<any> {
     const url = `${this.apiUrl}personal-tokens/`;
     const payload = { name };
-    return this.http.post(url, payload).pipe(
-      tap(res => console.log('Novi token kreiran:', res))
-    );
+    return this.http.post(url, payload);
   }
 
   filterUserByText(queryText: string): Observable<any> {
@@ -124,5 +124,66 @@ export class UserService {
         }
       })
     );
+  }
+
+  getUsers(): Observable<any> {
+    const url = `${this.apiUrl}profile/users/`;
+    return this.http.get<any>(url);
+  }
+
+  getCurrnetRoles(): Observable<any> {
+    const url = `${this.apiUrl}profile/roles/`;
+    return this.http.get<any>(url);
+  }
+
+  filterUserByUsername(username: string): Observable<any> {
+      const url = `${this.apiUrl}profile/users/${username}/`;
+      return this.http.get<any>(url);
+  }
+
+  changeRole(role: any): Observable<any> {
+    const url = `${this.apiUrl}profile/roles/`;
+    return this.http.post<any>(url, role).pipe(
+      tap((response: any) => {
+        if (response.status === 'sucessifull') {
+          localStorage.removeItem(this.roleKey);
+          localStorage.setItem(this.roleKey, role.new_role)
+        }
+      })
+    )
+  }
+
+  generateNewPassword(username: string) {
+    const url = `${this.apiUrl}profile/generate-password/`;
+    return this.http.post<any>(url, {username: username});
+  }
+
+  getRole() {
+    const r = localStorage.getItem(this.roleKey);
+    if(r) {
+      return r.toString();
+    };
+    return null;
+  }
+
+  getCurrentUser() {
+    const u = localStorage.getItem(this.userKey);
+    if (u) {
+      return JSON.parse(u);
+    }
+
+    return null;
+  }
+
+  isSuperAdmin(): boolean {
+    return this.getRole()?.toLowerCase() === 'superadmin';
+  }
+
+  isAdmin(): boolean {
+    return this.getRole()?.toLowerCase() === 'admin';
+  }
+
+  isAdminOrSuperadmin(): boolean {
+    return this.isAdmin() || this.isSuperAdmin();
   }
 }

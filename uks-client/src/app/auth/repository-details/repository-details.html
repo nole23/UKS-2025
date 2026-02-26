@@ -4,147 +4,214 @@
         <span>Last pushed {{ repository.last_pushed_at | date:'short' }}</span> -
     }
     @else {
-        <span>Last pushed {{ lastTag.updated_at | date:'short' }}</span> -
+        @if (lastTag) {
+            <span>Last pushed {{ lastTag.updated_at | date:'short' }}</span> -
+        }
     }
     <span>Pull ({{repository.pulls_count}})</span> -
     <span >Star ({{repository.stars_count}})</span>
   </div>
 </div>
 
-<!-- TABS -->
-<div class="tabs">
-  <div class="tab"
-       [class.active]="activeTab==='general'"
-       (click)="setTab('general')">General</div>
+@if (isTagsLoading && isCollaboratorLoading) {
+    <!-- TABS -->
+    <div class="tabs">
+        <div class="tab"
+            [class.active]="activeTab==='general'"
+            (click)="setTab('general')">General</div>
 
-  <div class="tab"
-       [class.active]="activeTab==='tags'"
-       (click)="setTab('tags')">Tags</div>
+        <div class="tab"
+            [class.active]="activeTab==='tags'"
+            (click)="setTab('tags')">Tags</div>
 
-  <div class="tab"
-       [class.active]="activeTab==='collaborators'"
-       (click)="setTab('collaborators')">Collaborators</div>
-</div>
-
-<!-- TAB CONTENT -->
-@if (activeTab === 'general') {
-  <div class="tab-content">
-    <div>
-        <div>
-            <h3>Tags</h3>
-            <p>This repository contains 1 tag(s).</p>
-        </div>
-        <table>
-            <thead>
-                <tr>
-                    <td>Tag</td>
-                    <td>Os</td>
-                    <td>Type</td>
-                    <td>Pulled</td>
-                    <td>Pushed</td>
-                </tr>
-            </thead>
-            <tbody>
-                @for (tag of tags; track tag) {
-                    <tr>
-                        <td>{{tag.name}}</td>
-                        <td>{{tag.os_arch}}</td>
-                        <td>Image</td>
-                        <td>{{tag.created_at | date:'short'}}</td>
-                        <td>{{tag.updated_at | date:'short'}}</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        <!-- <div>
-            <h3>Repository overview</h3>
-            <p>An overview describes what your image does and how to run it. It displays in the public view of your repository once you have pushed some content.</p>
-            <form>
-                <textarea name="" id=""></textarea>
-                <button style="background-color: red;">Cancel</button>
-                <button>Updated overview</button>
-            </form>
-        </div> -->
-    </div>
-    <div>
-        <h1>build cloud</h1>
-        <p>Build with</p>
-        <h3>Docker Build Cloud</h3>
-
-        <div>
-            Accelerate image build times with access to cloud-based builders and shared cache.
-        </div>
-        <div>
-            Docker Build Cloud executes builds on optimally-dimensioned cloud infrastructure with dedicated per-organization isolation
-        </div>
-        <div>
-            Get faster builds through shared caching across your team, native multi-platform support, and encrypted data transfer - all without managing infrastructure.
-        </div>
-    </div>
-  </div>
-}
-
-@if (activeTab === 'tags') {
-  <table class="simple-table">
-    <tr>
-      <th>Name</th>
-      <th>Digest</th>
-      <th>OS</th>
-      <th>Size (MB)</th>
-      <th></th>
-    </tr>
-    @for (tag of tags; track tag) {
-      <tr>
-        <td>{{ tag.name }}</td>
-        <td>{{ tag.digest }}</td>
-        <td>{{ tag.os_arch }}</td>
-        <td>{{ tag.compressed_size_mb }}</td>
-        <th><button (click)="removeTag(tag)">Remove</button></th>
-      </tr>
-    }
-  </table>
-  <br>
-  <button (click)="addTag()">Add Tag</button>
-}
-
-@if (activeTab === 'collaborators') {
-  <div class="collaborators">
-    <div class="add-collaborator">
-        <h3>Collaborators</h3>
-        <p>Collaborators will be given push and pull access to this repository.</p>
-
-        <input
-            type="text"
-            placeholder="Username"
-            [(ngModel)]="searchTerm"
-            (input)="onSearchUser()"
-        />
-
-        <!-- AUTOCOMPLETE LIST -->
-        @if (filteredUsers.length > 0) {
-            <ul class="user-suggestions">
-            @for (user of filteredUsers; track user.username) {
-                <li (click)="selectUser(user)">
-                {{ user.username }}
-                </li>
-            }
-            </ul>
+        @if (userService.isSuperAdmin() || isOwner()) {
+            <div class="tab"
+                [class.active]="activeTab==='collaborators'"
+                (click)="setTab('collaborators')">Collaborators</div>
+            
+            <div class="tab"
+                [class.active]="activeTab==='options'"
+                (click)="setTab('options')">Options</div>
         }
+    </div>
 
-        <button (click)="addCollaborator()" [disabled]="!selectedUser">
-            Add collaborator
-        </button>
+    <!-- TAB CONTENT -->
+    @if (activeTab === 'general') {
+    <div class="tab-content">
+        <div>
+            <div>
+                <h3>Tags</h3>
+                <p>This repository contains 1 tag(s).</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <td>Tag</td>
+                        <td>Os</td>
+                        <td>Type</td>
+                        <td>Pulled</td>
+                        <td>Pushed</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (tag of tags; track tag) {
+                        <tr>
+                            <td>{{tag.name}}</td>
+                            <td>{{tag.os_arch}}</td>
+                            <td>Image</td>
+                            <td>{{tag.created_at | date:'short'}}</td>
+                            <td>{{tag.updated_at | date:'short'}}</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <h1>build cloud</h1>
+            <p>Build with</p>
+            <h3>Docker Build Cloud</h3>
+
+            <div>
+                Accelerate image build times with access to cloud-based builders and shared cache.
+            </div>
+            <div>
+                Docker Build Cloud executes builds on optimally-dimensioned cloud infrastructure with dedicated per-organization isolation
+            </div>
+            <div>
+                Get faster builds through shared caching across your team, native multi-platform support, and encrypted data transfer - all without managing infrastructure.
+            </div>
+        </div>
     </div>
-    <div>
-        <h3>Current collaborators</h3>
-        <ul>
-            @for (col of collaborators; track col) {
-                <li>
-                    {{col.username}}
-                    <button class="remove" (click)="removeCollaborators(col)">Remove</button>
-                </li>
+    }
+
+    @if (activeTab === 'tags') {
+    <table class="simple-table">
+        <tr>
+        <th>Name</th>
+        <th>Digest</th>
+        <th>OS</th>
+        <th>Size (MB)</th>
+        @if (userService.isSuperAdmin() || isOwner()) {
+            <th></th>
+        }
+        </tr>
+        @for (tag of tags; track tag) {
+        <tr>
+            <td>{{ tag.name }}</td>
+            <td>{{ tag.digest }}</td>
+            <td>{{ tag.os_arch }}</td>
+            <td>{{ tag.compressed_size_mb }}</td>
+            @if (userService.isSuperAdmin() || isOwner()) {
+                <th><button (click)="removeTag(tag)">Remove</button></th>
             }
-        </ul>
+        </tr>
+        }
+    </table>
+    <br>
+    @if (userService.isSuperAdmin() || isOwner()) {
+        <button (click)="addTag()">Add Tag</button>
+    }
+    }
+
+    @if (activeTab === 'collaborators') {
+    <div class="collaborators">
+        <div class="add-collaborator">
+            <h3>Collaborators</h3>
+            <p>Collaborators will be given push and pull access to this repository.</p>
+
+            <input
+                type="text"
+                placeholder="Username"
+                [(ngModel)]="searchTerm"
+                (input)="onSearchUser()"
+            />
+
+            <!-- AUTOCOMPLETE LIST -->
+            @if (filteredUsers.length > 0) {
+                <ul class="user-suggestions">
+                @for (user of filteredUsers; track user.username) {
+                    <li (click)="selectUser(user)">
+                    {{ user.username }}
+                    </li>
+                }
+                </ul>
+            }
+
+            <button (click)="addCollaborator()" [disabled]="!selectedUser">
+                Add collaborator
+            </button>
+        </div>
+        <div>
+            <h3>Current collaborators</h3>
+            <ul>
+                @for (col of collaborators; track col) {
+                    <li>
+                        {{col.username}}
+                        <button class="remove" (click)="removeCollaborators(col)">Remove</button>
+                    </li>
+                }
+            </ul>
+        </div>
     </div>
-  </div>
+    }
+
+    @if (activeTab === 'options') {
+        <div class="collaborators not-grid">
+            <div class="visibility-settings">
+                <h2>VIsibility settings</h2>
+                <span>This repository is {{this.repository.visibility}}</span>
+
+                <div class="visibility-paragraf">
+                    <p>Using 0 of 1 private repositories.</p>
+                    <p>Public repositories are available to anyone. Private repositories are only available to you.</p>
+                </div>
+
+                <div>
+                    <button (click)="openModal('visibility')">
+                        @if (!isVisibilitySpiner) {
+                            Make {{getTypeVisibility()}}
+                        }
+                        @else {
+                            <span class="spinner"></span>
+                        }
+                    </button>
+                </div>
+            </div>
+
+            <div class="visibility-settings">
+                <h2>Delete repository</h2>
+
+                <div class="visibility-paragraf">
+                    <p>Deleting a repository will destroy all tags stored within it. This action cannot be undone.</p>
+                </div>
+
+                <div>
+                    <button style="background-color: red!important;" (click)="openModal('delete')" [disabled]="isDeleteDisabled()">
+                        @if (!isDeleteSpinser) {
+                            Delete repository
+                        }
+                        @else {
+                            <span class="spinner"></span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}
+@else {
+    <span class="spinner"></span>
+}
+
+
+@if (isOpenModal) {
+    <app-modal-dialog-component
+        [title]="modalTitle"
+        [message]="modalMessage"
+        [type]="modelType"
+        [isCancelVisibility]="isCancel"
+        [innerDiv]="innerDiv"
+        (ok)="onModalOk()"
+        (cancel)="onModalCancle()">
+    </app-modal-dialog-component>
 }

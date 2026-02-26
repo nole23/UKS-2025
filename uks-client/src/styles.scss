@@ -128,3 +128,78 @@ button:disabled {
   color: red;
   margin-top: 10px;
 }
+
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .modal {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px!important;
+        min-width: 300px;
+        text-align: center;
+
+        button {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        padding: 0.5rem;
+        border-radius: 4px;
+    }
+
+    .msg-info {
+        border: 1px solid green;
+        p {
+            color: green!important;
+        }
+        button {
+            background-color: green!important;
+        }
+    }
+
+    .msg-warning {
+        border: 1px solid orange;
+        p {
+            color: orange!important;
+        }
+        button {
+            background-color: orange!important;
+        }
+    }
+
+    .msg-error {
+        border: 1px solid red;
+        p {
+            color: red!important;
+        }
+        button {
+            background-color: red!important;
+        }
+    }
+}
+
+.btn-width {
+    width: 100px;
+}
+
+.btn-left {
+    margin-left: 10%!important;
+    float: left;
+}
+
+.btn-right {
+    margin-right: 10%!important;
+    float: right;
+}
+
+.btn-red {
+    clear: both;
+    background-color: red!important;
+}

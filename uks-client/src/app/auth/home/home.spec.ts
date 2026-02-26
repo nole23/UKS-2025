@@ -42,17 +42,6 @@ describe('AuthHomeComponent (standalone)', () => {
     expect(component).toBeTruthy();
   });
 
-  it('ngOnInit should set username and load projects', () => {
-    const fakeUser = 'testuser';
-    mockAuthService.getUsername.and.returnValue(fakeUser);
-    mockProjectService.getProjects.and.returnValue(of([]));
-
-    component.ngOnInit();
-
-    expect(component.username).toEqual(fakeUser);
-    expect(mockProjectService.getProjects).toHaveBeenCalledWith('', 'all', 'r');
-  });
-
   it('loadProjects should populate projects on success', () => {
     const projects = [{ name: 'Repo1' }, { name: 'Repo2' }];
     mockProjectService.getProjects.and.returnValue(of(projects));

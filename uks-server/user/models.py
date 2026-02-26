@@ -1,6 +1,8 @@
 from django.contrib.auth.models import Permission, AbstractUser
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 import uuid
 
 
@@ -11,7 +13,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    last_login = models.DateTimeField(null=True, blank=True)
+    must_change_password = models.BooleanField(default=False)
 
     # permissions: User ↔ Permission (many-to-many)
     user_permissions = models.ManyToManyField(
@@ -19,6 +21,13 @@ class User(AbstractUser):
         blank=True,
         related_name="dockerhub_users"
     )
+
+    @property
+    def is_superadmin(self):
+        return self.groups.filter(name="Superadmin").exists()
+    
+    def is_admin(self):
+        return self.groups.filter(name="Administrator").exists()
 
     def __str__(self):
         return self.username
@@ -75,9 +84,6 @@ class PersonalToken(models.Model):
 
 # -------------------
 # Signal za automatsko kreiranje profila
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

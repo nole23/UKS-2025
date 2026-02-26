@@ -235,46 +235,6 @@
   margin-top: 20px;
   overflow-x: auto; // za mobilne uređaje
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.95rem;
-    min-width: 600px; // osigurava da tabela ne sruši kolone na mobilnim
-
-    thead {
-      background-color: #f6f8fa;
-      tr {
-        th {
-          text-align: left;
-          padding: 10px;
-          border-bottom: 1px solid #ddd;
-        }
-      }
-    }
-
-    tbody {
-      tr {
-        border-bottom: 1px solid #eee;
-        td {
-          text-align: left;
-          padding: 10px;
-          vertical-align: middle;
-        }
-      }
-    }
-
-    .visibility {
-      &.public {
-        color: #28a745;
-        font-weight: 600;
-      }
-      &.private {
-        color: #dc3545;
-        font-weight: 600;
-      }
-    }
-  }
-
   .loading-msg {
     text-align: center;
     margin-top: 15px;

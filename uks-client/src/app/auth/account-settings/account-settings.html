@@ -1,46 +1,57 @@
-@if (user != null) {
-    <div class="account-settings-container">
-        <aside class="sidebar">
-            <div class="profile-box">
-                <span class="avatar-letter">{{ user?.username?.charAt(0).toUpperCase() }}</span>
-                <div class="account-text">
-                    <div class="account-email">{{ email }}</div>
-                    <div class="account-plan">Docker Personal</div>
-                </div>
+<div class="account-settings-container">
+    <aside class="sidebar">
+        <div class="profile-box">
+            <span class="avatar-letter">{{ user?.username?.charAt(0).toUpperCase() }}</span>
+            <div class="account-text">
+                <div class="account-email">{{ email }}</div>
+                <div class="account-plan">{{isPersonal() ? 'Personal account' : `${getType()} account`}}</div>
             </div>
+        </div>
 
-            <ul class="menu">
-                <!-- HOME -->
-                <li class="menu-item" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
-                    <a routerLink="/home" routerLinkActive="active">Home</a>
-                </li>
+        <ul class="menu">
+            <!-- HOME -->
+            <li class="menu-item" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                <a routerLink="/home" routerLinkActive="active">Home</a>
+            </li>
 
-                <!-- SETTINGS BUTTON -->
-                <li class="menu-item settings-header" (click)="toggleSettings()">
-                    <span>Settings</span>
-                    <span class="arrow" [class.open]="settingsOpen">▾</span>
-                </li>
+            <!-- SETTINGS BUTTON -->
+            <li class="menu-item settings-header" (click)="toggleSettings()">
+                <span>Settings</span>
+                <span class="arrow" [class.open]="settingsOpen">▾</span>
+            </li>
 
-                <!-- SETTINGS SUBMENU -->
-                @if (settingsOpen) {
-                    <ul class="submenu">
-                        <li (click)="selectMenu('accountInfo')" [class.active]="selectedMenu==='accountInfo'">
+            <!-- SETTINGS SUBMENU -->
+            @if (settingsOpen) {
+                <ul class="submenu">
+                    <li (click)="selectMenu('accountInfo')" [class.active]="selectedMenu==='accountInfo'">
                         Account Information
-                        </li>
-                        <li (click)="selectMenu('email')" [class.active]="selectedMenu==='email'">
-                        Email
-                        </li>
-                        <li (click)="selectMenu('password')" [class.active]="selectedMenu==='password'">
-                        Password
-                        </li>
-                        <li (click)="selectMenu('tokens')" [class.active]="selectedMenu==='tokens'">
-                        Personal Access Tokens
-                        </li>
-                    </ul>
-                }
-            </ul>
-        </aside>
+                    </li>
 
+                    <li (click)="selectMenu('email')" [class.active]="selectedMenu==='email'">
+                        Email
+                    </li>
+                    
+                    <li (click)="selectMenu('password')" [class.active]="selectedMenu==='password'">
+                        Password
+                    </li>
+
+                    @if (userService.isAdminOrSuperadmin() || isPersonal()) {
+                        <li (click)="selectMenu('tokens')" [class.active]="selectedMenu==='tokens'">
+                            Personal Access Tokens
+                        </li>
+                    }
+
+                    @if (userService.isAdminOrSuperadmin()) {
+                        <li (click)="selectMenu('role')" [class.active]="selectedMenu==='role'">
+                            Roles
+                        </li>
+                    }
+                </ul>
+            }
+        </ul>
+    </aside>
+
+    @if (!loadData) {
         <section class="content">
             @if (selectedMenu==='accountInfo') {
                 <h2>Account Information</h2>
@@ -70,13 +81,6 @@
                         }
                         
                     </button>
-
-                    <!-- Poruka o uspehu ili grešci -->
-                    @if (message) {
-                        <div [ngClass]="{'success-message': !error, 'error-message': error}">
-                            {{ message }}
-                        </div>
-                    }
                 </form>
             }
 
@@ -99,13 +103,6 @@
                     }
                     
                 </button>
-
-                <!-- Poruka o uspehu ili grešci -->
-                @if (emailMessage) {
-                    <div [ngClass]="{'success-message': !emailError, 'error-message': emailError}">
-                        {{ emailMessage }}
-                    </div>
-                }
             }
 
             @if (selectedMenu==='password') {
@@ -115,7 +112,7 @@
                 <button (click)="resetPassword()">Reset Password</button>
             }
 
-            @if (selectedMenu==='password2') {
+            @if (selectedMenu==='password2' && isPersonal()) {
                 <h2>Password</h2>
                 <p>Enter your new password.</p>
 
@@ -134,13 +131,21 @@
                     }
                     
                 </button>
+            }
 
-                <!-- Poruka o uspehu ili grešci -->
-                @if (messagePassword) {
-                    <div [ngClass]="{'success-message': !errorPassword, 'error-message': errorPassword}">
-                        {{ messagePassword }}
-                    </div>
-                }
+            @if (selectedMenu==='password2' && !isPersonal() && userService.isSuperAdmin()) {
+                <h2>Password</h2>
+                <p>Generate a new password</p>
+                
+                <button type="button" (click)="resetPassword3()">
+                    @if (!loading) {
+                        <span>Generate password</span>
+                    }
+                    @if (loading) {
+                        <span><i class="spinner"></i></span>
+                    }
+                    
+                </button>
             }
 
             @if (selectedMenu==='tokens') {
@@ -154,14 +159,12 @@
                     
                     <label>Token Name</label>
                     <input type="text" [(ngModel)]="newTokenName" placeholder="Enter token name" />
-                    <button (click)="generateToken()" [disabled]="loading || !newTokenName">
-                        <span *ngIf="!loading">Generate</span>
-                        <span *ngIf="loading"><i class="spinner"></i></span>
-                    </button>
-
-                    <div *ngIf="messageToken" [ngClass]="{'success-message': !errorToken, 'error-message': errorToken}">
-                        {{ messageToken }}
-                    </div>
+                    @if (userService.isSuperAdmin() || isPersonal()) {
+                        <button (click)="generateToken()" [disabled]="loading || !newTokenName">
+                            <span *ngIf="!loading">Generate</span>
+                            <span *ngIf="loading"><i class="spinner"></i></span>
+                        </button>
+                    }
                 }
                 @else {
                     <h2>Personal Access Tokens</h2>
@@ -170,22 +173,10 @@
                     <br>
 
                     @if (tokens && tokens.length > 0) {
-                        <table class="tokens-table" >
-                            <thead>
-                                <tr>
-                                <th>Name</th>
-                                <th>Token</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @for (token of tokens; track token) {
-                                    <tr>
-                                        <td>{{ token.name }}</td>
-                                        <td>{{ token.token }}</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                        <app-table-component
+                            [columns]="tokenColumns"
+                            [data]="tokens">
+                        </app-table-component>
                     }
                     @else {
                         <p >No personal tokens found.</p>
@@ -193,17 +184,77 @@
 
                 }                
             }
+
+            @if (selectedMenu === 'role') {
+                <h2>Personal Roles</h2>
+                <p>View all roles that have been assigned</p>
+
+                @if (roles) {
+                    @if (!isRoleLoader) {
+                        <div class="role-box">
+                            <div class="role-row">
+                                @if (!isShowRole) {
+                                    <div class="role-text">
+                                        This role is <span class="role-name">{{ user.role }}</span>
+                                        @if (userService.isSuperAdmin()) {
+                                            <br>Your roll is the strongest and you cannot change it.
+                                        }
+                                    </div>
+                                }
+                                @else {
+                                    <app-table-component
+                                        [columns]="roleColumns"
+                                        [data]="roles"
+                                        (selectionChange)="onRoleSelected($event)">
+                                    </app-table-component>                            
+                                }
+                            </div>
+                        </div>
+                        @if (!isShowRole) {
+                        <button class="btn-remove btn-green" (click)="isShowRole = !isShowRole" [disabled]="userService.isSuperAdmin()">Edit</button>
+                        }
+                        @else {
+                            <button class="btn-remove btn-green" (click)="updateRole()">Save</button>
+                        }
+                        
+                    }
+                    @else {
+                        <div class="child">
+                            <span class="spinner"></span>
+                            Update...
+                        </div>
+                    }
+                }
+                @else {
+                    <p >The system has not defined a rules list.</p>
+                }
+
+            }
         </section>
-    </div>
+    }
+    @else {
+        <div class="child">
+            <span class="spinner"></span>
+            Loading...
+        </div>
+    }
+</div>
+
+@if (showPasswordModal) {
+    <app-modal-dialog-component
+        [title]="'Email sending simulation'" 
+        [innerDiv]="simulatedEmailContent"
+        [isCancelVisibility]="true"
+        (ok)="selectMenuAndClose('password2')"
+        (cancel)="closeModal()">
+    </app-modal-dialog-component>
 }
 
-
-<!-- Modal za simulaciju emaila -->
-<div class="modal-backdrop" *ngIf="showPasswordModal">
-  <div class="modal">
-    <h3>Email sending simulation</h3>
-    <div [innerHTML]="simulatedEmailContent"></div>
-    <button (click)="closeModal()" style="background-color: red;">Close</button>
-    <button (click)="selectMenuAndClose('password2')" style="float: right;">Restart Password</button>
-  </div>
-</div>
+@if (isMessage) {
+    <app-modal-dialog-component
+        [title]="modalTitle" 
+        [message]="modalMessage"
+        [type]="modelType"
+        (ok)="onModalOk()">
+    </app-modal-dialog-component>
+}

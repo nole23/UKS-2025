@@ -287,3 +287,25 @@
     }
   }
 }
+
+.not-grid {
+  grid-template-columns: none!important;
+
+  .visibility-settings {
+    h2 {
+      margin-bottom: 0!important;
+    }
+    span {
+      color: #3333339c;
+      font-size: 14px;
+    }
+
+    .visibility-paragraf {
+      margin: 15px 0 15px 0;
+      
+      p {
+        margin: 0!important;
+      }
+    }
+  }
+}
