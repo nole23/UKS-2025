@@ -15,6 +15,10 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     must_change_password = models.BooleanField(default=False)
 
+    # Badge polja za search
+    is_verified_publisher = models.BooleanField(default=False)
+    is_sponsored_oss = models.BooleanField(default=False)
+
     # permissions: User ↔ Permission (many-to-many)
     user_permissions = models.ManyToManyField(
         Permission,

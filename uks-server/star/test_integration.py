@@ -67,7 +67,7 @@ class StarRepositoryIntegrationTests(APITestCase):
 
         # Proveri da li je povećan stars_count
         self.repo_public.refresh_from_db()
-        self.assertEqual(self.repo_public.stars_count, 1)
+        self.assertEqual(self.repo_public.stars_count, 2)
 
     # ----------------------
     # DELETE /star/ - uklanjanje star

@@ -42,9 +42,12 @@ export class RepositoryDetails implements OnInit{
   isCollaboratorLoading: boolean = false;
   isTagsLoading: boolean = false;
 
+  selectedBadge: string | null = null; // inicijalno ništa
+
   constructor(private repo: ProjectService, public userService: UserService) {}
 
   ngOnInit() {
+    this.selectedBadge = this.repository.badge
     this.user = this.userService.getCurrentUser();
     this.loadTags();
     this.loadCollaborators();
@@ -169,7 +172,7 @@ export class RepositoryDetails implements OnInit{
   }
 
   isOwner() {
-    return this.isRealOwnre || this.collaborators.some(c => c.username === this.user.username);
+    return this.isRealOwnre() || this.collaborators.some(c => c.username === this.user.username);
   }
 
   isRealOwnre() {
@@ -204,6 +207,19 @@ export class RepositoryDetails implements OnInit{
         <br>
         <span>
           and its build settings. This cannot be undone.
+        </span>
+      `
+      this.modelType = '';
+      this.isOpenModal = true;
+      this.isCancel = true;
+    }
+
+    if (type === 'accepted') {
+      this.modalTitle = 'Update badge';
+      this.modalMessage = '';
+      this.innerDiv = `
+        <span>
+          This repository's badge will be updated.
         </span>
       `
       this.modelType = '';
@@ -265,11 +281,39 @@ export class RepositoryDetails implements OnInit{
           }
         })
     }
+
+    if (this.globalType === 'accepted') {
+      this.repo.updateBadgeRepository(this.repository.id, this.selectedBadge)
+        .pipe(finalize(() => {
+          this.isDeleteSpinser = false;
+          this.globalType = '';
+        }))
+        .subscribe({
+          next: () => {
+            this.modalTitle = '';
+            this.modalMessage = `${this.repository.name} repository has update`;
+            this.modelType = 'info';
+            this.isOpenModal = true;
+
+            this.repositoryChange.emit('update')
+          },
+          error: () => {
+            this.modalTitle = '';
+            this.modalMessage = `Repository cannot be update.`;
+            this.modelType = 'error';
+            this.isOpenModal = true;
+          }
+        })
+    }
   }
 
   onModalCancle() {
     this.closeModal();
     this.globalType = '';
+  }
+
+  onBadgeChange(event: any) {
+    this.selectedBadge = event.target.value;
   }
 
   private closeModal() {

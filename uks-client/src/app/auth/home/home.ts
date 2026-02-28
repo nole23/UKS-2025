@@ -34,6 +34,8 @@ export class AuthHomeComponent implements OnInit{
   typeBody: string = 'home';
   openRepo: any = null;
   userRole: any = '';
+  badgeDropdownOpen = false;
+  selectedBadges: string[] = [];
 
   repoColumns: TableColumn[] = [
     { key:'name', label:'Name' },
@@ -46,7 +48,9 @@ export class AuthHomeComponent implements OnInit{
 
     { key:'owner_username', label:'Owner' },
 
-    { key:'organization_name', label:'Organization' }
+    { key:'organization_name', label:'Organization' },
+
+    { key:'badge', label:'Badge'}
   ]
 
   rowAction = this.openRepository.bind(this);
@@ -71,16 +75,22 @@ export class AuthHomeComponent implements OnInit{
 
   loadProjects(): void {
     this.isLoading = true;
-    this.projectService.getProjects(this.searchQuery, this.visibilityFilter, this.sortingFilter).subscribe({
-      next: (data: any) => {
-        this.projects = data;
-        this.isLoading = false;
-      },
-      error: () => {
-        this.message = 'Greška pri učitavanju projekata';
-        this.isLoading = false;
-      }
-    });
+    this.projectService.getProjects(
+      this.searchQuery,
+      this.visibilityFilter,
+      this.sortingFilter,
+      this.selectedBadges
+    )
+      .subscribe({
+        next: (data: any) => {
+          this.projects = data.results;
+          this.isLoading = false;
+        },
+        error: () => {
+          this.message = 'Greška pri učitavanju projekata';
+          this.isLoading = false;
+        }
+      });
   }
 
   search(): void {
@@ -150,5 +160,19 @@ export class AuthHomeComponent implements OnInit{
   onRepoChanged(status: string) {
     this.loadProjects();
     this.typeBody = 'home';
+  }
+
+  onBadgeChange(event: any) {
+    const badge = event.target.value;
+    if (event.target.checked) {
+      this.selectedBadges.push(badge);
+    } else {
+      this.selectedBadges = this.selectedBadges.filter(b => b !== badge);
+    }
+    this.loadProjects(); // refresuj listu
+  }
+
+  toggleBadgeDropdown() {
+    this.badgeDropdownOpen = !this.badgeDropdownOpen;
   }
 }

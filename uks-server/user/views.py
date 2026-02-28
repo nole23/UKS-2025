@@ -383,7 +383,6 @@ class RoleView(APIView):
         if not (user.is_admin() or user.is_superadmin):
             return Response({"message": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
 
-        print(request.data.get("new_role"))
         target_username = request.data.get("username")
         new_role_name = request.data.get("new_role")
 

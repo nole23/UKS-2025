@@ -20,7 +20,8 @@ export class CreateRepository {
     description: '',
     visibility: '',
     organization_id: '',
-    official: ''
+    official: '',
+    badge: 'NONE' // default badge
   }
 
   constructor(public userService: UserService) {}
@@ -31,6 +32,11 @@ export class CreateRepository {
 
   create() {
     this.loading = true;
+    // Ako običan korisnik kreira repo, badge je NONE
+    if (!this.userService.isAdminOrSuperadmin()) {
+      this.repository.badge = 'NONE';
+      this.repository.official = false;
+    }
     this.created.emit(this.repository); // 👉 javi parentu
   }
 

@@ -157,6 +157,45 @@
 
     @if (activeTab === 'options') {
         <div class="collaborators not-grid">
+            @if (userService.isSuperAdmin()) {
+                <div class="visibility-settings">
+                    <h2>Badge settings</h2>
+                    <span>This repository is {{this.repository.badge}}</span>
+
+                    <div class="visibility-paragraf">
+                        <p>We mark the repository as ['OFFICIAL','VERIFIED','SPONSORED']</p>
+                    </div>
+
+                    <div>
+                        <div class="badge-menu">
+                            @for (b of ['OFFICIAL','VERIFIED','SPONSORED']; track b) {
+                                <label>
+                                    <input
+                                        type="radio" 
+                                        name="badge"
+                                        [value]="b" 
+                                        (change)="onBadgeChange($event)" 
+                                        [checked]="selectedBadge === b"
+                                    />
+                                    {{ b }}
+                                </label>
+                            }
+                        </div>
+                    </div>
+
+                        <div>
+                        <button style="background-color: green!important;" (click)="openModal('accepted')">
+                            @if (!isDeleteSpinser) {
+                                Update badge
+                            }
+                            @else {
+                                <span class="spinner"></span>
+                            }
+                        </button>
+                    </div>
+                </div>
+            }
+
             <div class="visibility-settings">
                 <h2>VIsibility settings</h2>
                 <span>This repository is {{this.repository.visibility}}</span>
