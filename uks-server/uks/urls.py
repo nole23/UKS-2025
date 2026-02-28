@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from user.views import GenerateUserPasswordView, RoleView, UserDetailView, UserListAllView, UserRegistrationView, CreateAdminView, UserListView, MyTokenObtainPairView, UserProfileDetailView, PersonalTokenListView, UserProfileUpdateView, PersonalTokenCreateView, UserEmailUpdateView, UserPasswordChangeView
-from repository.views import RepositoryListView, RepositorySearchView, DockerInfoView, RepositoryDetailView, RepositoryCollaboratorView
+from repository.views import RepositoryBadgeUpdateView, RepositoryListView, RepositorySearchView, DockerInfoView, RepositoryDetailView, RepositoryCollaboratorView
 from star.views import StarRepositoryView, StarredRepositoriesView
 from pull.views import PullRepositoryView
 from tag.views import RepositoryTagListView
@@ -39,7 +39,7 @@ urlpatterns = [
     path('api/personal-tokens/', PersonalTokenCreateView.as_view(), name='personal-tokens'),
     path('api/personal-tokens/list/', PersonalTokenListView.as_view(), name='personal-tokens-list'),
     path("api/repositories", RepositoryListView.as_view(), name='repository-list'),
-    path("api/repositories/search", RepositorySearchView.as_view(), name='repository-search'),
+    path("api/repositories/search/", RepositorySearchView.as_view(), name='repository-search'),
     path("api/docker/info", DockerInfoView.as_view()),
     path("api/repositories/<int:pk>/", RepositoryDetailView.as_view()),
     path("api/repositories/<int:pk>/star/", StarRepositoryView.as_view()),
@@ -50,4 +50,5 @@ urlpatterns = [
     path("api/repositories/<int:pk>/collaborators/<int:user_id>/", RepositoryCollaboratorView.as_view()),
     path("api/repositories/<int:pk>/tags/", RepositoryTagListView.as_view()),
     path("api/repositories/<int:repo_id>/tags/<int:tag_id>/", RepositoryTagListView.as_view()),
+    path("api/repositories/<int:pk>/badge/", RepositoryBadgeUpdateView.as_view(), name="update-badget"),
 ]

@@ -34,5 +34,3 @@ def ensure_superadmin_exists():
         f.write("SUPERADMIN CREATED\n")
         f.write("username: root\n")
         f.write(f"password: {password}\n")
-
-    print("Superadmin created. Credentials saved to superadmin_credentials.txt")

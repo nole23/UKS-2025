@@ -101,6 +101,20 @@
           [(ngModel)]="searchQuery"
           (keyup.enter)="search()"
         />
+        <div class="badge-dropdown">
+          <button (click)="toggleBadgeDropdown()" class="badge-button">
+            Badges ▾
+          </button>
+          <div class="badge-menu" [class.show]="badgeDropdownOpen">
+            @for (b of ['OFFICIAL','VERIFIED','SPONSORED','NONE']; track b) {
+              <label>
+                <input type="checkbox" [value]="b" (change)="onBadgeChange($event)" 
+                      [checked]="selectedBadges.includes(b)" />
+                {{ b }}
+              </label>
+            }
+          </div>
+        </div>
 
         <select [(ngModel)]="visibilityFilter" (change)="search()">
           <option value="all">All</option>
@@ -166,7 +180,11 @@
 
     @if (typeBody == 'open-repo') {
       <div class="body-title">
-        <h2>{{openRepo.name}}</h2>
+        <h2>
+          <span>
+            {{openRepo.name + (openRepo.badge !== null ? (' - ' + openRepo.badge) : '' )}} 
+          </span>
+        </h2>
       </div>
       <app-repository-details [repository]="openRepo" (repositoryChange)="onRepoChanged($event)"></app-repository-details>
     }

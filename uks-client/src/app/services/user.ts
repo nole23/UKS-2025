@@ -186,4 +186,8 @@ export class UserService {
   isAdminOrSuperadmin(): boolean {
     return this.isAdmin() || this.isSuperAdmin();
   }
+
+  getOrganizations(): any {
+    return [];
+  }
 }

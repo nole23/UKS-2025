@@ -61,15 +61,30 @@
       <!-- OFFICIAL REPOSITORY (samo za admina/superadmina) -->
       @if (userService.isAdminOrSuperadmin()) {
         <div class="visibility-section">
-          <label class="visibility-title">Official repository</label>
-          <label class="visibility-option">
+          <label class="visibility-title">Repository Badge</label>
+
+          @for (b of ['OFFICIAL','VERIFIED','SPONSORED']; track b) {
+                    <label class="visibility-option">
             <input
-              type="checkbox"
-              name="official"
-              [(ngModel)]="repository.official"
+              type="radio"
+              name="badge"
+              [(ngModel)]="repository.badge"
+              [value]="b"
             />
-            <span>Create as Official Repository</span>
+            <span>{{ b }}</span>
           </label>
+          }
+        </div>
+      }
+
+      <!-- ORGANIZATION (ako korisnik pripada nekoj org) -->
+      @if (userService.getOrganizations()?.length > 0) {
+        <div class="visibility-section">
+          <label class="visibility-title">Organization (optional)</label>
+          <select [(ngModel)]="repository.organization_id">
+            <option value="">-- None --</option>
+            <option *ngFor="let org of userService.getOrganizations()" [value]="org.id">{{ org.name }}</option>
+          </select>
         </div>
       }
 

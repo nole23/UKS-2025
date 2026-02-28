@@ -309,3 +309,24 @@
     }
   }
 }
+
+.badge-menu {
+  display: flex;          /* stavlja sve label-e u horizontalni red */
+  gap: 20px;              /* razmak između checkbox-eva */
+  align-items: center;    /* vertikalno centriranje checkbox-a i teksta */
+  margin: 10px 0;
+
+  label {
+    display: flex;          /* checkbox i tekst u istom label-u */
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+    user-select: none;
+  }
+
+  input[type="checkbox"] {
+    margin-right: 6px;      /* razmak između checkbox-a i teksta */
+    width: 16px;
+    height: 16px;
+  }
+}

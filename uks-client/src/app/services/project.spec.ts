@@ -1,72 +1,186 @@
-// import { TestBed } from '@angular/core/testing';
-// import { ProjectService } from './project';
-// import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { environment } from '../../environments/environment';
+import { ProjectService } from './project';
 
-// describe('ProjectService', () => {
-//   let service: ProjectService;
-//   let httpMock: HttpTestingController;
+describe('ProjectService', () => {
+  let service: ProjectService;
+  let httpMock: HttpTestingController;
+  const api = environment.apiUrl;
 
-//   beforeEach(() => {
-//     TestBed.configureTestingModule({
-//       imports: [HttpClientTestingModule],
-//       providers: [ProjectService]
-//     });
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [ProjectService]
+    });
 
-//     service = TestBed.inject(ProjectService);
-//     httpMock = TestBed.inject(HttpTestingController);
-//   });
+    service = TestBed.inject(ProjectService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
 
-//   afterEach(() => {
-//     httpMock.verify(); // Proverava da nema otvorenih HTTP zahteva
-//   });
+  afterEach(() => {
+    httpMock.verify();
+  });
 
-//   it('should be created', () => {
-//     expect(service).toBeTruthy();
-//   });
+  // =========================
+  // GET PROJECTS
+  // =========================
+  it('should fetch projects with default params', () => {
+    service.getProjects().subscribe();
 
-//   it('should call API without query', () => {
-//     service.getProjects().subscribe();
+    const req = httpMock.expectOne(r =>
+      r.url === api + 'repositories/search/' &&
+      r.params.get('q') === '' &&
+      r.params.get('visibility') === 'all' &&
+      r.params.get('sorting') === 'latest' &&
+      r.params.get('limit') === '20' &&
+      r.params.get('offset') === '0'
+    );
 
-//     const req = httpMock.expectOne('http://localhost:8000/api/repositories/search');
-//     expect(req.request.method).toBe('GET');
-//     expect(req.request.params.keys().length).toBe(0); // nema query param
-//     expect(req.request.withCredentials).toBeTrue();
-//     req.flush([]); // simuliramo prazan odgovor
-//   });
+    expect(req.request.method).toBe('GET');
+    expect(req.request.withCredentials).toBeTrue();
 
-//   it('should call API with query', () => {
-//     const query = 'test';
-//     service.getProjects(query).subscribe();
+    req.flush({});
+  });
 
-//     const req = httpMock.expectOne((r) => r.url === 'http://localhost:8000/api/repositories/search' && r.params.get('q') === query);
-//     expect(req.request.method).toBe('GET');
-//     expect(req.request.params.get('q')).toBe(query);
-//     expect(req.request.withCredentials).toBeTrue();
-//     req.flush([{ name: 'Repo1' }, { name: 'Repo2' }]); // simuliramo odgovor
-//   });
+  it('should send search filters and badges', () => {
+    service.getProjects('test', 'public', 'oldest', ['OFFICIAL','VERIFIED'], 5, 10).subscribe();
 
-//   it('should return projects on success', () => {
-//     const mockProjects = [{ name: 'Repo1' }, { name: 'Repo2' }];
+    const req = httpMock.expectOne(r =>
+      r.url === api + 'repositories/search/' &&
+      r.params.get('q') === 'test' &&
+      r.params.getAll('badge')?.length === 2
+    );
 
-//     service.getProjects().subscribe((projects) => {
-//       expect(projects.length).toBe(2);
-//       expect(projects).toEqual(mockProjects);
-//     });
+    expect(req.request.params.get('visibility')).toBe('public');
+    expect(req.request.params.get('sorting')).toBe('oldest');
+    expect(req.request.params.get('limit')).toBe('5');
+    expect(req.request.params.get('offset')).toBe('10');
 
-//     const req = httpMock.expectOne('http://localhost:8000/api/repositories/search');
-//     req.flush(mockProjects);
-//   });
+    req.flush({});
+  });
 
-//   it('should handle error', () => {
-//     const errorMsg = 'simulated network error';
-//     service.getProjects().subscribe({
-//       next: () => fail('should have failed'),
-//       error: (error) => {
-//         expect(error.statusText).toBe('Bad Request');
-//       }
-//     });
+  // =========================
+  // CREATE PROJECT
+  // =========================
+  it('should create project', () => {
+    const repo = { name: 'Repo1' };
 
-//     const req = httpMock.expectOne('http://localhost:8000/api/repositories/search');
-//     req.flush(errorMsg, { status: 400, statusText: 'Bad Request' });
-//   });
-// });
+    service.createProject(repo).subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(repo);
+
+    req.flush({});
+  });
+
+  // =========================
+  // TAGS
+  // =========================
+  it('should get project tags', () => {
+    service.getProjectTags(5).subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/5/tags');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.withCredentials).toBeTrue();
+
+    req.flush([]);
+  });
+
+  it('should remove tag', () => {
+    service.removeTag(5, 9).subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/5/tags/9/');
+    expect(req.request.method).toBe('DELETE');
+    expect(req.request.withCredentials).toBeTrue();
+
+    req.flush({});
+  });
+
+  it('should add tag', () => {
+    service.addTag(5, { name: 'tag' }).subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/5/tags/');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.name).toBe('tag');
+
+    req.flush({});
+  });
+
+  // =========================
+  // COLLABORATORS
+  // =========================
+  it('should get collaborators', () => {
+    service.getCollaborators(3).subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/3/collaborators/');
+    expect(req.request.method).toBe('GET');
+    expect(req.request.withCredentials).toBeTrue();
+
+    req.flush([]);
+  });
+
+  it('should add collaborator', () => {
+    service.addCollaborator(3, 11).subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/3/collaborators/');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ user_id: 11, role: 'write' });
+
+    req.flush({});
+  });
+
+  it('should remove collaborator', () => {
+    service.removeCollaborators(3, 11).subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/3/collaborators/11/');
+    expect(req.request.method).toBe('DELETE');
+    expect(req.request.withCredentials).toBeTrue();
+
+    req.flush({});
+  });
+
+  // =========================
+  // VISIBILITY
+  // =========================
+  it('should change visibility', () => {
+    service.editVisibilityRepository(7, 'private').subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/update/visibility');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      repoId: 7,
+      visibility: 'private'
+    });
+
+    req.flush({});
+  });
+
+  // =========================
+  // BADGE UPDATE
+  // =========================
+  it('should update badge', () => {
+    service.updateBadgeRepository(4, 'OFFICIAL').subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/4/badge/');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ badge: 'OFFICIAL' });
+
+    req.flush({});
+  });
+
+  // =========================
+  // DELETE REPOSITORY
+  // =========================
+  it('should delete repository', () => {
+    service.deleteRepository(99).subscribe();
+
+    const req = httpMock.expectOne(api + 'repositories/99/');
+    expect(req.request.method).toBe('DELETE');
+    expect(req.request.withCredentials).toBeTrue();
+
+    req.flush({});
+  });
+
+});
