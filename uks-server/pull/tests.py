@@ -42,10 +42,12 @@ class PullRepositoryViewUnitTests(TestCase):
         # Mock repository koji postoji
         mock_repo = MagicMock()
         mock_repo.pulls_count = 5
+        mock_repo.name = "TestRepo"  # ovo je ključno za log
         mock_repo_objects.get.return_value = mock_repo
 
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = MagicMock()
+        request.user.username = "fake_user"
 
         view = PullRepositoryView()
         response = view.post(request, pk=1)
@@ -69,13 +71,14 @@ class PullRepositoryViewUnitTests(TestCase):
         mock_repo_objects.get.side_effect = Repository.DoesNotExist
 
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = MagicMock()
+        request.user.username = "fake_user"
 
         view = PullRepositoryView()
         response = view.post(request, pk=999)
 
         # Proveravamo status i poruku
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.data == {"error": "Repository not found"}
 
     @patch("pull.views.Pull.objects")
@@ -98,7 +101,8 @@ class PullRepositoryViewUnitTests(TestCase):
         mock_queryset.__iter__.return_value = [pull1, pull2]
 
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = MagicMock()
+        request.user.username = "fake_user"
 
         view = PullRepositoryView()
         response = view.get(request, pk=1)

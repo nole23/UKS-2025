@@ -1,71 +1,161 @@
 import { DatePipe } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ProjectService } from '../../services/project';
 import { UserService } from '../../services/user';
+import { ModalDialogComponent } from '../../helpers/modal-dialog-component/modal-dialog-component';
+import { finalize } from 'rxjs';
+import { TableComponent } from '../../helpers/table-component/table-component';
+import { TableColumn } from '../../helpers/interface/table-column';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-repository-details',
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, ModalDialogComponent, TableComponent],
   templateUrl: './repository-details.html',
   styleUrl: './repository-details.scss',
 })
 export class RepositoryDetails implements OnInit{
   @Input() repository: any;
+  @Output() repositoryChange = new EventEmitter<any>();
 
   activeTab: string = 'general';
 
   tags: any[] = [];
+  stars: any[] = [];
   lastTag: any = null;
   pulls: any[] = [];
   collaborators: any[] = [];
 
-  users = [
-    { username: 'nole' },
-    { username: 'admin' },
-    { username: 'novica' },
-    { username: 'tester' }
-  ];
-
   searchTerm = '';
   filteredUsers: any[] = [];
   selectedUser: any = null;
+  user: any = {}
 
-  constructor(private repo: ProjectService, private userService: UserService) {}
+  modalTitle: string = '';
+  modalMessage: string = '';
+  modelType: string = '';
+  innerDiv: any = null;
+  isOpenModal: boolean = false;
+  isCancel: boolean = false;
+
+  isVisibilitySpiner: boolean = false;
+  isDeleteSpinser: boolean = false;
+  globalType: string = '';
+
+  isCollaboratorLoading: boolean = false;
+  isTagsLoading: boolean = false;
+  isStarLoadin: boolean = false;
+  isLoaderStarAction: boolean = false;
+
+  selectedBadge: string | null = null; // inicijalno ništa
+
+  loadingText: string = 'Loading';
+  dots: number = 0;
+
+  tabsColumns: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'digest', label: 'Digest' },
+    { key: 'os_arch', label: 'OS' },
+    { key: 'compressed_size_mb', label: 'Size (MB)' },
+  ]
+
+  tagsColumnsWithoutButton: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'os_arch', label: 'OS' },
+    { key: 'created_at', label: 'Pulled' },
+    { key: 'updated_at', label: 'Pushed' },
+  ]
+
+  starsColumns: TableColumn[] = [
+    { key: 'user_username', label: 'Username' },
+    { key: 'starred_at', label: 'Start' },
+  ];
+  removeUserId: any = null;
+
+  constructor(private repo: ProjectService, public userService: UserService, private router: Router) {}
 
   ngOnInit() {
+    this.selectedBadge = this.repository.badge
+    this.user = this.userService.getCurrentUser();
     this.loadTags();
+    this.loadStars();
+    this.loadCollaborators();
+  }
+
+  viewUser(user_id: string) {
+    this.router.navigate(['user', user_id])
   }
 
   setTab(tab: string) {
     this.activeTab = tab;
-
-    if (tab === 'collaborators') this.loadCollaborators();
   }
 
   loadTags() {
-    this.repo.getProjectTags(this.repository.id).subscribe({
-      next: (res) => {
-        this.tags = res;
-        if (res.length > 0) {
-          this.lastTag = res.reduce((prev: any, current: any) => {
-            return new Date(prev.updated_at) > new Date(current.updated_at) ? prev : current;
-          });
+    if (this.userService.isSuperAdmin() || this.isOwner()) {
+      this.tabsColumns.push({
+        key: 'actions',
+        label: '',
+        type: 'buttons',
+        buttons: [
+          {
+            icon: 'fa fa-remove',
+            title: 'Remove',
+            class: 'btn-transparent',
+            fn: (row) => this.removeTag(row)
+          }
+        ]
+      })
+    }
+
+    this.repo.getProjectTags(this.repository.id)
+      .pipe(finalize(() => this.isTagsLoading = true))
+      .subscribe({
+        next: (res) => {
+          this.tags = res;
+          if (res.length > 0) {
+            this.lastTag = res.reduce((prev: any, current: any) => {
+              return new Date(prev.updated_at) > new Date(current.updated_at) ? prev : current;
+            });
+          }
+        },
+        error: () => {
         }
-      },
-      error: (error) => {
-        console.log(error)
-      }
-    })
+      })
+  }
+
+  loadStars() {
+    if (this.userService.isSuperAdmin() || this.isOwner()) {
+      this.starsColumns.push({
+        key: 'actions',
+        label: '',
+        type: 'buttons',
+        buttons: [
+          { icon: 'fa fa-eye', title: 'View', class: 'btn-green mr-1', fn: (user_id: any) => this.viewUser(user_id) },
+        ]
+      })
+    }
+    this.repo.getProjectStars(this.repository.id)
+      .pipe(finalize(() => this.isStarLoadin = true))
+      .subscribe({
+        next: (res: any) => {
+          this.stars = res;
+        },
+        error: () => {
+
+        }
+      })
   }
 
   loadCollaborators() {
-    this.repo.getCollaborators(this.repository.id).subscribe({
-      next: (res: any) => {
-        this.collaborators = res;
-      },
-      error: () => {}
-    })
+    this.repo.getCollaborators(this.repository.id)
+      .pipe(finalize(() => this.isCollaboratorLoading = true))
+      .subscribe({
+        next: (res: any) => {
+          this.collaborators = res;
+        },
+        error: () => {}
+      })
   }
 
   onSearchUser() {
@@ -78,8 +168,7 @@ export class RepositoryDetails implements OnInit{
       next: (res) => {
         this.filteredUsers = res;
       },
-      error: (err) => {
-        console.log(err)
+      error: () => {
       }
     })
   }
@@ -106,8 +195,7 @@ export class RepositoryDetails implements OnInit{
           this.tags.splice(index, 1); // ukloni 1 element na tom indexu
         }
       },
-      error: (err: any) => {
-        console.log(err)
+      error: () => {
       }
     })
   }
@@ -154,5 +242,210 @@ export class RepositoryDetails implements OnInit{
         }
       }
     })
+  }
+
+  isOwner() {
+    return this.isRealOwnre() || this.collaborators.some(c => c.username === this.user.username);
+  }
+
+  isRealOwnre() {
+    return this.repository.owner_username === this.user.username
+  }
+
+  isDeleteDisabled() {
+    return !(this.userService.isSuperAdmin() || this.isRealOwnre());
+  }
+
+  getTypeVisibility() {
+    return this.repository.visibility === "public" ? "private" : "public"
+  }
+
+  openModal(type: string) {
+    this.globalType = type;
+    if (type === 'visibility') {
+      this.modalTitle = 'Visibility settings';
+      this.modalMessage = `Change '${this.repository.name}' repository to ${this.getTypeVisibility()}. `;
+      this.modelType = '';
+      this.isOpenModal = true;
+      this.isCancel = true;
+    }
+
+    if (type === 'delete') {
+      this.modalTitle = 'Delete repository';
+      this.modalMessage = '';
+      this.innerDiv = `
+        <span>
+          This deletes the repository, all the tags it contains,
+        </span>
+        <br>
+        <span>
+          and its build settings. This cannot be undone.
+        </span>
+      `
+      this.modelType = '';
+      this.isOpenModal = true;
+      this.isCancel = true;
+    }
+
+    if (type === 'accepted') {
+      this.modalTitle = 'Update badge';
+      this.modalMessage = '';
+      this.innerDiv = `
+        <span>
+          This repository's badge will be updated.
+        </span>
+      `
+      this.modelType = '';
+      this.isOpenModal = true;
+      this.isCancel = true;
+    }
+  }
+
+  onModalOk() {
+    this.closeModal();
+    if (this.globalType === 'visibility') {
+      this.isVisibilitySpiner = true;
+
+      this.repo.editVisibilityRepository(this.repository.id, this.getTypeVisibility())
+        .pipe(finalize(() => {
+          this.isVisibilitySpiner = false;
+          this.globalType = '';
+        }))  
+        .subscribe({
+          next: () => {
+            this.modalTitle = '';
+            this.modalMessage = `Visibility settings changed to ${this.getTypeVisibility()}`;
+            this.modelType = 'info';
+            this.isOpenModal = true;
+
+            this.repositoryChange.emit('update')
+          },
+          error: () => {
+            this.modalTitle = '';
+            this.modalMessage = `Visibility settings not changed`;
+            this.modelType = 'error';
+            this.isOpenModal = true;
+          }
+        })
+    }
+
+    if (this.globalType === 'delete') {
+      this.isDeleteSpinser = true;
+
+      this.repo.deleteRepository(this.repository.id)
+        .pipe(finalize(() => {
+          this.isDeleteSpinser = false;
+          this.globalType = '';
+        }))
+        .subscribe({
+          next: () => {
+            this.modalTitle = '';
+            this.modalMessage = `${this.repository.name} repository has deleted`;
+            this.modelType = 'info';
+            this.isOpenModal = true;
+
+            this.repositoryChange.emit('delete')
+          },
+          error: () => {
+            this.modalTitle = '';
+            this.modalMessage = `Repository cannot be deleted.`;
+            this.modelType = 'error';
+            this.isOpenModal = true;
+          }
+        })
+    }
+
+    if (this.globalType === 'accepted') {
+      this.repo.updateBadgeRepository(this.repository.id, this.selectedBadge)
+        .pipe(finalize(() => {
+          this.isDeleteSpinser = false;
+          this.globalType = '';
+        }))
+        .subscribe({
+          next: () => {
+            this.modalTitle = '';
+            this.modalMessage = `${this.repository.name} repository has update`;
+            this.modelType = 'info';
+            this.isOpenModal = true;
+
+            this.repositoryChange.emit('update')
+          },
+          error: () => {
+            this.modalTitle = '';
+            this.modalMessage = `Repository cannot be update.`;
+            this.modelType = 'error';
+            this.isOpenModal = true;
+          }
+        })
+    }
+  }
+
+  onModalCancle() {
+    this.closeModal();
+    this.globalType = '';
+  }
+
+  onBadgeChange(event: any) {
+    this.selectedBadge = event.target.value;
+  }
+
+  hasAlredyBeenStarredByTheCurrentUser(repository: any) {
+    if (this.stars.length === 0) {
+      return false;
+    }
+
+    return this.stars.some(s => s.user_username === this.user.username);
+  }
+
+  actionForStar(repository: any) {
+    this.isLoaderStarAction = true;
+    this.repo.actionToStar(repository.id, !this.hasAlredyBeenStarredByTheCurrentUser(repository))
+      .pipe(finalize(() => this.isLoaderStarAction = false))
+      .subscribe({
+        next: (res: any) => {
+          if (res.message === 'Starred') {
+            repository.stars_count++;
+            this.stars.push({user_id: this.user.id, user_username: this.user.username, starred_at: Date.now()})
+            this.isOpenModal = true;
+            this.modalMessage = `You have successfully added the repository ${repository.nama} to follow.`;
+            this.modelType = 'success';
+          } else if (res.message === 'Unstarred') {
+            repository.stars_count--;
+            const index = this.stars.findIndex(s => s.user_id === this.user.id);
+            if (index !== -1) {
+              this.stars.splice(index, 1);
+            }
+            this.isOpenModal = true;
+            this.modalMessage = `You have removed repository: {${repository.nama}} from your watchlist.`;
+            this.modelType = 'info';
+          }
+          else {
+            this.isOpenModal = true;
+            this.modalMessage = `You failed to add prioritythin to the list.`;
+            this.modelType = 'error'
+          }
+        },
+        error: () => {
+          this.isOpenModal = true;
+          this.modalMessage = `There was a network problem. Please contact your administrator.`;
+          this.modelType = 'error'
+        }
+      })
+  }
+
+  loadingTextInterval() {
+    setInterval(() => {
+      this.dots = (this.dots + 1) % 4; // 0,1,2,3
+      this.loadingText = 'Loading' + '.'.repeat(this.dots);
+    }, 1000);
+  }
+
+  private closeModal() {
+    this.modalTitle = '';
+    this.modalMessage = '';
+    this.modelType = '';
+    this.isOpenModal = false;
+    this.innerDiv = null;
+    this.isCancel = false;
   }
 }

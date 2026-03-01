@@ -1,5 +1,6 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { UserService } from '../../services/user';
 
 @Component({
   selector: 'app-create-repository',
@@ -18,8 +19,12 @@ export class CreateRepository {
     name: '',
     description: '',
     visibility: '',
-    organization_id: ''
+    organization_id: '',
+    official: '',
+    badge: 'NONE' // default badge
   }
+
+  constructor(public userService: UserService) {}
 
   cancel() {
     this.close.emit();
@@ -27,6 +32,11 @@ export class CreateRepository {
 
   create() {
     this.loading = true;
+    // Ako običan korisnik kreira repo, badge je NONE
+    if (!this.userService.isAdminOrSuperadmin()) {
+      this.repository.badge = 'NONE';
+      this.repository.official = false;
+    }
     this.created.emit(this.repository); // 👉 javi parentu
   }
 

@@ -7,10 +7,14 @@ import { FormsModule } from '@angular/forms';
 import { DefautlPrivateRepository } from '../defautl-private-repository/defautl-private-repository';
 import { CreateRepository } from '../create-repository/create-repository';
 import { RepositoryDetails } from '../repository-details/repository-details';
+import { ShowAllUsers } from '../show-all-users/show-all-users';
+import { UserService } from '../../services/user';
+import { TableComponent } from '../../helpers/table-component/table-component';
+import { TableColumn } from '../../helpers/interface/table-column';
 
 @Component({
   selector: 'app-home',
-  imports: [FormsModule, CommonModule, DefautlPrivateRepository, CreateRepository, RepositoryDetails],
+  imports: [FormsModule, CommonModule, DefautlPrivateRepository, CreateRepository, RepositoryDetails, ShowAllUsers, TableComponent],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
@@ -19,24 +23,49 @@ export class AuthHomeComponent implements OnInit{
   projects: any[] = [];
   searchQuery: string = '';
   visibilityFilter: 'all' | 'public' | 'private' = 'all'; // default = sve
-  sortingFilter: 'r' | 'l' | 'o' = 'r';
+  sortingFilter: 'latest' | 'oldest' | 'random' = 'latest';
   username: any = '';
   message: string = '';
   isLoading: boolean = false;
   dropdownOpen = false;
   settingsOpen = true;
+  administrationPage = false;
+  analitycsPage = false;
   typeBody: string = 'home';
   openRepo: any = null;
+  userRole: any = '';
+  badgeDropdownOpen = false;
+  selectedBadges: string[] = [];
+
+  repoColumns: TableColumn[] = [
+    { key:'name', label:'Name' },
+
+    { key:'created_at', label:'Last Updated', type:'date' },
+
+    { key:'visibility', label:'Visibility', type:'badge',
+      classFn:(v)=>'visibility '+v
+    },
+
+    { key:'owner_username', label:'Owner' },
+
+    { key:'organization_name', label:'Organization' },
+
+    { key:'badge', label:'Badge'}
+  ]
+
+  rowAction = this.openRepository.bind(this);
 
   constructor(
     private projectService: ProjectService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    public userService: UserService
   ) {}
 
   ngOnInit(): void {
     // Uzmi username logovanog korisnika
-    this.username = this.authService.getUsername();
+    this.username = this.userService.getCurrentUser();
+    this.userRole = this.userService.getRole();
     this.loadProjects();
   }
 
@@ -46,16 +75,22 @@ export class AuthHomeComponent implements OnInit{
 
   loadProjects(): void {
     this.isLoading = true;
-    this.projectService.getProjects(this.searchQuery, this.visibilityFilter, this.sortingFilter).subscribe({
-      next: (data: any) => {
-        this.projects = data;
-        this.isLoading = false;
-      },
-      error: () => {
-        this.message = 'Greška pri učitavanju projekata';
-        this.isLoading = false;
-      }
-    });
+    this.projectService.getProjects(
+      this.searchQuery,
+      this.visibilityFilter,
+      this.sortingFilter,
+      this.selectedBadges
+    )
+      .subscribe({
+        next: (data: any) => {
+          this.projects = data.results;
+          this.isLoading = false;
+        },
+        error: () => {
+          this.message = 'Greška pri učitavanju projekata';
+          this.isLoading = false;
+        }
+      });
   }
 
   search(): void {
@@ -76,8 +111,24 @@ export class AuthHomeComponent implements OnInit{
     this.router.navigate(['/' + link]);
   }
 
-  toggleSettings() {
-    this.settingsOpen = !this.settingsOpen;
+  openPanel(panel: 'settings' | 'administration' | 'analytics') {
+    // zatvori sve
+    this.settingsOpen = false;
+    this.administrationPage = false;
+    this.analitycsPage = false;
+
+    // otvori samo izabrani panel
+    switch (panel) {
+      case 'settings':
+        this.settingsOpen = true;
+        break;
+      case 'administration':
+        this.administrationPage = true;
+        break;
+      case 'analytics':
+        this.analitycsPage = true;
+        break;
+    }
   }
 
   openBody(link: string) {
@@ -89,8 +140,6 @@ export class AuthHomeComponent implements OnInit{
   }
 
   onRepoCreated(repo: any) {
-    console.log('Repo created:', repo);
-
     this.projectService.createProject(repo).subscribe({
       next: (res) => {
         this.createRepoComp.stopLoading(); // ugasi spinner
@@ -104,8 +153,26 @@ export class AuthHomeComponent implements OnInit{
   }
 
   openRepository(repo: any) {
-    console.log(repo);
     this.openRepo = repo;
     this.openBody('open-repo')
+  }
+
+  onRepoChanged(status: string) {
+    this.loadProjects();
+    this.typeBody = 'home';
+  }
+
+  onBadgeChange(event: any) {
+    const badge = event.target.value;
+    if (event.target.checked) {
+      this.selectedBadges.push(badge);
+    } else {
+      this.selectedBadges = this.selectedBadges.filter(b => b !== badge);
+    }
+    this.loadProjects(); // refresuj listu
+  }
+
+  toggleBadgeDropdown() {
+    this.badgeDropdownOpen = !this.badgeDropdownOpen;
   }
 }

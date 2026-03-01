@@ -9,16 +9,23 @@ class Repository(models.Model):
         ("private", "Private"),
     )
 
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
-    visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES)
+    BADGE_CHOICES = [
+        ("OFFICIAL", "Docker Official Image"),
+        ("VERIFIED", "Verified Publisher"),
+        ("SPONSORED", "Sponsored OSS"),
+        ("NONE", "None")
+    ]
 
+    name = models.CharField(max_length=255, db_index=True)
+    description = models.TextField(blank=True)
+    visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES, db_index=True)
+    
     owner = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="owned_repositories",
         null=True,
-        blank=True
+        blank=True,
     )
 
     organization = models.ForeignKey(
@@ -26,14 +33,17 @@ class Repository(models.Model):
         on_delete=models.CASCADE,
         related_name="repositories",
         null=True,
-        blank=True
+        blank=True,
+        db_index=True
     )
 
-    stars_count = models.PositiveIntegerField(default=0)
+    stars_count = models.PositiveIntegerField(default=0, db_index=True)
     pulls_count = models.PositiveIntegerField(default=0)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    last_pushed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    last_pushed_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    badge = models.CharField(max_length=10, choices=BADGE_CHOICES, default="NONE", db_index=True)
 
     def __str__(self):
         return self.name

@@ -1,0 +1,70 @@
+
+<table class="common-table">
+  <thead>
+    <tr>
+        @for(col of columns; track col) {
+            <th>
+                {{ col.label }}
+            </th>
+        }
+    </tr>
+  </thead>
+
+  <tbody>
+    @for(row of data; track row) {
+        <tr [ngClass]="{'clickable-row': rowAction}" (click)="rowAction?.(row)">
+            @for(col of columns; track col) {
+                <td [ngStyle]="{ 'float' : col.type === 'buttons' ? 'right' : ''}">
+                    @if (!col.type || col.type === 'text') {
+                        <!-- TEXT -->
+                        <ng-container>
+                            {{ row[col.key] }}
+                        </ng-container>
+                    }
+
+                    @if (col.type  === 'date') {
+                        <!-- DATE -->
+                        <ng-container>
+                            {{ row[col.key] | date:'short' }}
+                        </ng-container>
+                    }
+
+                    @if (col.type === 'badge') {
+                        <!-- BADGE -->
+                        <ng-container>
+                            <span [ngClass]="col.classFn?.(row[col.key], row)">
+                                {{ row[col.key] }}
+                            </span>
+                        </ng-container>
+                    }
+
+                    @if (col.type === 'radio') {
+                        <ng-container>
+                            <input 
+                            type="radio"
+                            [name]="col.key"
+                            [checked]="row[col.key]"
+                            (change)="onSelect(row, col.key)"
+                            />
+                        </ng-container>
+                    }
+
+                    @if (col.type === 'buttons') {
+                        @for (button of col.buttons; track button) {
+                            <!-- BUTTON -->
+                            <ng-container>
+                                <button [class]="button.class" (click)="button.fn(row)">
+                                    @if (button.icon) {
+                                        <i [class]="button.icon"></i>
+                                    }
+                                    {{ button.title }}
+                                </button>
+                            </ng-container>
+                        }
+                    }
+                </td>
+            }
+        </tr>
+    }
+  </tbody>
+</table>

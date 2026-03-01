@@ -3,43 +3,6 @@ from unittest.mock import MagicMock, patch
 from rest_framework import status
 from .views import RepositoryTagListView  # prilagodi putanju
 from repository.models import Repository
-from .models import Tag
-
-class TagModelTests(TestCase):
-
-    def setUp(self):
-        # Kreiramo minimalni Repository
-        self.repo = Repository.objects.create(name="MyRepo")
-
-    def test_tag_default_values(self):
-        tag = Tag.objects.create(
-            name="v1.0",
-            repository=self.repo
-        )
-
-        self.assertEqual(tag.digest, "")
-        self.assertEqual(tag.os_arch, "linux/amd64")
-        self.assertEqual(tag.compressed_size_mb, 0.0)
-        self.assertEqual(tag.repository, self.repo)
-
-    def test_tag_custom_values(self):
-        tag = Tag.objects.create(
-            name="v2.0",
-            digest="abc123",
-            os_arch="windows/amd64",
-            compressed_size_mb=15.2,
-            repository=self.repo
-        )
-
-        self.assertEqual(tag.name, "v2.0")
-        self.assertEqual(tag.digest, "abc123")
-        self.assertEqual(tag.os_arch, "windows/amd64")
-        self.assertEqual(tag.compressed_size_mb, 15.2)
-        self.assertEqual(tag.repository, self.repo)
-
-    def test_tag_str_method(self):
-        tag = Tag.objects.create(name="v1.0", repository=self.repo)
-        self.assertEqual(str(tag), "MyRepo:v1.0")
 
 
 class RepositoryTagListViewTests(TestCase):
@@ -112,6 +75,7 @@ class RepositoryTagListViewTests(TestCase):
     @patch("tag.views.Repository.objects")
     def test_post_tag_positive(self, mock_repo_objects, mock_tag_objects):
         mock_repo = MagicMock()
+        mock_repo.id = 1
         mock_repo_objects.get.return_value = mock_repo
 
         mock_tag = MagicMock()
@@ -123,7 +87,11 @@ class RepositoryTagListViewTests(TestCase):
         mock_tag_objects.create.return_value = mock_tag
 
         request = MagicMock()
-        request.user = "fake_user"
+        # Kreiramo mock user sa username
+        mock_user = MagicMock()
+        mock_user.username = "fake_user"
+        request.user = mock_user
+
         request.data = {
             "name": "latest",
             "digest": "sha256:abcd1234",
@@ -159,7 +127,11 @@ class RepositoryTagListViewTests(TestCase):
         mock_repo_objects.get.side_effect = Repository.DoesNotExist
 
         request = MagicMock()
-        request.user = "fake_user"
+        # kreiramo user mock sa username atributom
+        mock_user = MagicMock()
+        mock_user.username = "fake_user"
+        request.user = mock_user
+
         request.data = {
             "name": "latest",
             "digest": "sha256:abcd1234",

@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { of, throwError } from 'rxjs';
 import { HttpClientTestingModule } from '@angular/common/http/testing'; // <-- dodaj ovo
+import { UserService } from '../../services/user';
 
 describe('AuthHomeComponent (standalone)', () => {
   let component: AuthHomeComponent;
@@ -42,20 +43,9 @@ describe('AuthHomeComponent (standalone)', () => {
     expect(component).toBeTruthy();
   });
 
-  it('ngOnInit should set username and load projects', () => {
-    const fakeUser = 'testuser';
-    mockAuthService.getUsername.and.returnValue(fakeUser);
-    mockProjectService.getProjects.and.returnValue(of([]));
-
-    component.ngOnInit();
-
-    expect(component.username).toEqual(fakeUser);
-    expect(mockProjectService.getProjects).toHaveBeenCalledWith('', 'all', 'r');
-  });
-
   it('loadProjects should populate projects on success', () => {
     const projects = [{ name: 'Repo1' }, { name: 'Repo2' }];
-    mockProjectService.getProjects.and.returnValue(of(projects));
+    mockProjectService.getProjects.and.returnValue(of({ results: projects }));
 
     component.loadProjects();
 
@@ -88,5 +78,95 @@ describe('AuthHomeComponent (standalone)', () => {
     spyOn(window, 'alert');
     component.openNewProjectModal();
     expect(window.alert).toHaveBeenCalledWith('Ovo bi otvorilo modal za kreiranje novog projekta');
+  });
+
+  it('ngOnInit should load user and projects', () => {
+    spyOn(component, 'loadProjects');
+    const userService = TestBed.inject(UserService);
+
+    spyOn(userService, 'getCurrentUser').and.returnValue('user1');
+    spyOn(userService, 'getRole').and.returnValue('admin');
+
+    component.ngOnInit();
+
+    expect(component.username).toBe('user1');
+    expect(component.userRole).toBe('admin');
+    expect(component.loadProjects).toHaveBeenCalled();
+  });
+
+  it('should toggle dropdown', () => {
+    component.dropdownOpen = false;
+    component.toggleDropdown();
+    expect(component.dropdownOpen).toBeTrue();
+  });
+
+  it('should open only selected panel', () => {
+    component.openPanel('analytics');
+
+    expect(component.analitycsPage).toBeTrue();
+    expect(component.settingsOpen).toBeFalse();
+    expect(component.administrationPage).toBeFalse();
+  });
+
+  it('should add badge when checked', () => {
+    spyOn(component, 'loadProjects');
+
+    component.onBadgeChange({
+      target: { value: 'OFFICIAL', checked: true }
+    });
+
+    expect(component.selectedBadges).toContain('OFFICIAL');
+    expect(component.loadProjects).toHaveBeenCalled();
+  });
+
+  it('should remove badge when unchecked', () => {
+    component.selectedBadges = ['OFFICIAL'];
+    spyOn(component, 'loadProjects');
+
+    component.onBadgeChange({
+      target: { value: 'OFFICIAL', checked: false }
+    });
+
+    expect(component.selectedBadges).not.toContain('OFFICIAL');
+  });
+
+  it('should open repository', () => {
+    const repo = { id: 1 };
+    component.openRepository(repo);
+
+    expect(component.openRepo).toBe(repo);
+    expect(component.typeBody).toBe('open-repo');
+  });
+
+  it('onRepoCreated success', () => {
+    component.createRepoComp = {
+      stopLoading: jasmine.createSpy(),
+      errorMessage: jasmine.createSpy()
+    } as any;
+
+    spyOn(component, 'loadProjects');
+
+    mockProjectService.createProject = jasmine.createSpy()
+      .and.returnValue(of({}));
+
+    component.onRepoCreated({});
+
+    expect(component.createRepoComp.stopLoading).toHaveBeenCalled();
+    expect(component.loadProjects).toHaveBeenCalled();
+    expect(component.typeBody).toBe('home');
+  });
+
+  it('onRepoCreated error', () => {
+    component.createRepoComp = {
+      stopLoading: jasmine.createSpy(),
+      errorMessage: jasmine.createSpy()
+    } as any;
+
+    mockProjectService.createProject = jasmine.createSpy()
+      .and.returnValue(throwError(() => new Error()));
+
+    component.onRepoCreated({});
+
+    expect(component.createRepoComp.errorMessage).toHaveBeenCalled();
   });
 });

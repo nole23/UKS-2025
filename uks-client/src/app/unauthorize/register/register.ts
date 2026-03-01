@@ -34,7 +34,7 @@ export class RegisterComponent {
     if (this.registerForm.invalid) return;
 
     this.isLoading = true;
-    this.http.post<any>(this.apiUrl + 'register/', this.registerForm.value, { withCredentials: true })
+    this.http.post<any>(this.apiUrl + 'register/', {user: this.registerForm.value}, { withCredentials: true })
       .subscribe({
         next: (res) => {
           this.message = res.message;
