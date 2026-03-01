@@ -1,6 +1,7 @@
 # repository/serializers.py
 from rest_framework import serializers
 from .models import Repository
+from utils.logger import UKSLogger
 
 class RepositorySerializer(serializers.ModelSerializer):
     owner_username = serializers.CharField(
@@ -29,8 +30,14 @@ class RepositorySerializer(serializers.ModelSerializer):
             "created_at",
             "owner_username",
             "organization_name",
-            "last_pushed_at",  # 👈 dodato
-            "stars_count",     # 👈 opcionalno
-            "pulls_count",     # 👈 opcionalno
+            "last_pushed_at",
+            "stars_count",
+            "pulls_count",
             "badge"
         ]
+        
+    def to_representation(self, instance):
+        UKSLogger.debug(f"Serializing repository id={instance.id} name={instance.name}")
+        ret = super().to_representation(instance)
+        UKSLogger.debug(f"Serialized data for repo_id={instance.id}: {ret}")
+        return ret

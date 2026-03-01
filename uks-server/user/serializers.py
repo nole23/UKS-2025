@@ -5,6 +5,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 import secrets
+from utils.logger import UKSAuditLogger, UKSLogger
+
 User = get_user_model()
 
 
@@ -18,25 +20,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ('username', 'email', 'password', 'password2', 'first_name', 'last_name')
 
     def validate(self, attrs):
+        UKSLogger.debug("UserRegistrationSerializer.validate started...")
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Passwords do not match."})
+        UKSLogger.debug("UserRegistrationSerializer.validate ended...")
         return attrs
 
     def create(self, validated_data):
+        UKSLogger.debug("UserRegistrationSerializer.create started...")
         user = User.objects.create(
             username=validated_data['username'],
             email=validated_data['email'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', '')
         )
-
         user.set_password(validated_data['password'])
         user.save()
-
-        # default role
         group = Group.objects.get(name="OrdinaryUser")
         user.groups.add(group)
-
+        UKSLogger.debug("UserRegistrationSerializer.create ended...")
         return user
 
 
@@ -76,23 +78,22 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         )
 
     def update(self, instance, validated_data):
+        UKSLogger.debug("UserProfileUpdateSerializer.update started...")
         user_data = validated_data.pop("user", {})
 
-        # Provera email-a
         new_email = user_data.get("email")
         if new_email and User.objects.exclude(pk=instance.user.pk).filter(email=new_email).exists():
             raise serializers.ValidationError({"email": "This email is already in use."})
 
-        # Update user polja
         for attr, value in user_data.items():
             setattr(instance.user, attr, value)
 
-        # Update UserProfile polja
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         instance.user.save()
         instance.save()
+        UKSLogger.debug("UserProfileUpdateSerializer.update ended...")
         return instance
 
 
@@ -102,22 +103,24 @@ class UserEmailUpdateSerializer(serializers.Serializer):
     old_email = serializers.EmailField()
 
     def validate(self, attrs):
+        UKSLogger.debug("UserEmailUpdateSerializer.validate started...")
         user = self.context["request"].user
 
-        # Provera da li se old_email poklapa
         if user.email != attrs["old_email"]:
             raise serializers.ValidationError({"messages": "Old email does not match"})
 
-        # Provera da li je new_email već zauzet kod nekog drugog korisnika
         if User.objects.exclude(pk=user.pk).filter(email=attrs["new_email"]).exists():
             raise serializers.ValidationError({"messages": "This email is already in use"})
 
+        UKSLogger.debug("UserEmailUpdateSerializer.validate ended...")
         return attrs
 
     def save(self, **kwargs):
+        UKSLogger.debug("UserEmailUpdateSerializer.save started...")
         user = self.context["request"].user
         user.email = self.validated_data["new_email"]
         user.save()
+        UKSLogger.debug("UserEmailUpdateSerializer.save ended...")
         return user
 
 
@@ -127,16 +130,20 @@ class UserPasswordChangeSerializer(serializers.Serializer):
     new_password = serializers.CharField(write_only=True, validators=[validate_password])
 
     def validate_old_password(self, value):
+        UKSLogger.debug("UserPasswordChangeSerializer.validate_old_password started...")
         user = self.context["request"].user
         if not user.check_password(value):
             raise serializers.ValidationError("Old password is not correct")
+        UKSLogger.debug("UserPasswordChangeSerializer.validate_old_password ended...")
         return value
 
     def save(self, **kwargs):
+        UKSLogger.debug("UserPasswordChangeSerializer.save started...")
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password"])
         user.must_change_password = False
         user.save()
+        UKSLogger.debug("UserPasswordChangeSerializer.save ended...")
         return user
 
 
@@ -241,35 +248,52 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        UKSLogger.debug("MyTokenObtainPairSerializer.validate started...")
+        username = attrs.get("username")
+        UKSLogger.debug(f"Authorize for username={username}")
+
         # ovo vraća standardni response sa access i refresh tokenom
         data = super().validate(attrs)
-        if self.user.must_change_password:
-            data["must_change_password"] = True
-
         user = self.user
-        profile = getattr(user, "profile", None)
 
-        # dodajemo dodatne informacije o useru u response
-        data['user'] = {
-            'id': self.user.id,
-            'username': self.user.username,
-            'email': self.user.email,
-            "first_name": self.user.first_name,
-            "last_name": self.user.last_name,
-            # PROFILE DATA
-            "profile": {
-                "bio": profile.bio if profile else "",
-                "avatar": profile.avatar.url if profile and profile.avatar else None,
-                "company_name": profile.company_name if profile else "",
-                "company_email": profile.company_email if profile else "",
-                "company_location": profile.company_location if profile else "",
-                "company_website": profile.company_website if profile else "",
-                "default_repository": profile.default_repository if profile else "",
+        try:
+            if self.user.must_change_password:
+                UKSLogger.info(f"User {user.username} must change password")
+                UKSAuditLogger.info(f"User {user.username} login: must change password")
+                data["must_change_password"] = True
+
+            profile = getattr(user, "profile", None)
+
+            # dodajemo dodatne informacije o useru u response
+            data['user'] = {
+                'id': self.user.id,
+                'username': self.user.username,
+                'email': self.user.email,
+                "first_name": self.user.first_name,
+                "last_name": self.user.last_name,
+                # PROFILE DATA
+                "profile": {
+                    "bio": profile.bio if profile else "",
+                    "avatar": profile.avatar.url if profile and profile.avatar else None,
+                    "company_name": profile.company_name if profile else "",
+                    "company_email": profile.company_email if profile else "",
+                    "company_location": profile.company_location if profile else "",
+                    "company_website": profile.company_website if profile else "",
+                    "default_repository": profile.default_repository if profile else "",
+                }
             }
-        }
-        data['roles'] = list(user.groups.values_list("name", flat=True))
-        data['permissions'] = list(user.get_all_permissions())
 
+            data['roles'] = list(user.groups.values_list("name", flat=True))
+            data['permissions'] = list(user.get_all_permissions())
+
+            UKSLogger.info(f"Login successful for username={user.username}")
+            UKSAuditLogger.info(f"User {user.username} logged in successfully")
+        except Exception as ex:
+            UKSLogger.error(f"Login failed for username={username}: {ex}")
+            UKSAuditLogger.info(f"User {username} login failed: {ex}")
+            raise
+
+        UKSLogger.debug("MyTokenObtainPairSerializer.validate ended...")
         return data
 
 
@@ -277,22 +301,21 @@ class GeneratePasswordSerializer(serializers.Serializer):
     username = serializers.CharField()
 
     def validate_username(self, value):
+        UKSLogger.debug("GeneratePasswordSerializer.validate_username started...")
         try:
             user = User.objects.get(username=value)
         except User.DoesNotExist:
             raise serializers.ValidationError("User not found")
-
         self.user_obj = user
+        UKSLogger.debug("GeneratePasswordSerializer.validate_username ended...")
         return value
 
     def save(self):
+        UKSLogger.debug("GeneratePasswordSerializer.save started...")
         user = self.user_obj
-
         password = secrets.token_urlsafe(6)
-
         user.set_password(password)
         user.must_change_password = True
-
         user.save()
-
+        UKSLogger.debug("GeneratePasswordSerializer.save ended...")
         return password

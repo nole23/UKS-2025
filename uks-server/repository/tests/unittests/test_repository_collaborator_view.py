@@ -14,6 +14,7 @@ class RepositoryCollaboratorViewTests(TestCase):
     # -------------------
     @patch("repository.views.RepositoryCollaborator.objects")
     def test_get_collaborators_positive(self, mock_collab_objects):
+        # pripremi mock collaboratore
         collab1 = MagicMock()
         collab1.user.id = 1
         collab1.user.username = "user1"
@@ -21,15 +22,23 @@ class RepositoryCollaboratorViewTests(TestCase):
         collab2.user.id = 2
         collab2.user.username = "user2"
         mock_collab_objects.filter.return_value = [collab1, collab2]
+
+        # request.user kao objekat sa username
+        mock_user = MagicMock()
+        mock_user.username = "fake_user"
+
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = mock_user
+
         view = RepositoryCollaboratorView()
         response = view.get(request, pk=1)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data, [
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == [
             {"id": 1, "username": "user1"},
             {"id": 2, "username": "user2"},
-        ])
+        ]
+        mock_collab_objects.filter.assert_called_once_with(repository_id=1)
 
     # -------------------
     # POST metoda - pozitivni slučaj
@@ -38,23 +47,30 @@ class RepositoryCollaboratorViewTests(TestCase):
     @patch("repository.views.User.objects")
     @patch("repository.views.Repository.objects")
     def test_post_collaborator_positive(self, mock_repo_objects, mock_user_objects, mock_collab_objects):
+        # 👇 mock repo sa owner-om koji ima username
         mock_repo = MagicMock()
-        mock_repo.owner = "fake_user"
+        mock_owner = MagicMock()
+        mock_owner.username = "fake_user"
+        mock_repo.owner = mock_owner
         mock_repo_objects.get.return_value = mock_repo
 
+        # 👇 mock user koji se dodaje kao collaborator
         mock_user = MagicMock()
+        mock_user.username = "collab_user"
         mock_user_objects.get.return_value = mock_user
 
+        # 👇 get_or_create za repository collaborator
         mock_collab_objects.get_or_create.return_value = (MagicMock(), True)
 
+        # 👇 request.user takođe treba da ima username
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = mock_owner
         request.data = {"user_id": 123}
 
         view = RepositoryCollaboratorView()
         response = view.post(request, pk=1)
 
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.data == {"message": "Collaborator added"}
         mock_collab_objects.get_or_create.assert_called_once_with(repository=mock_repo, user=mock_user)
 
@@ -85,20 +101,27 @@ class RepositoryCollaboratorViewTests(TestCase):
     @patch("repository.views.RepositoryCollaborator.objects")
     @patch("repository.views.Repository.objects")
     def test_delete_collaborator_positive(self, mock_repo_objects, mock_collab_objects):
+        # Mock repo
         mock_repo = MagicMock()
-        mock_repo.owner = "fake_user"
+        mock_repo.owner = MagicMock()
+        mock_repo.owner.username = "fake_user"
         mock_repo_objects.get.return_value = mock_repo
 
+        # Mock queryset za delete
         mock_collab_qs = MagicMock()
         mock_collab_objects.filter.return_value = mock_collab_qs
 
+        # Request user kao objekat sa username
+        mock_user = MagicMock()
+        mock_user.username = "fake_user"
+
         request = MagicMock()
-        request.user = "fake_user"
+        request.user = mock_user
 
         view = RepositoryCollaboratorView()
         response = view.delete(request, pk=1, user_id=123)
 
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
         assert response.data == {"message": "Collaborator removed"}
         mock_collab_objects.filter.assert_called_once_with(repository=mock_repo, user_id=123)
         mock_collab_qs.delete.assert_called_once()
