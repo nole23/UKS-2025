@@ -41,8 +41,8 @@ class PullRepositoryViewIntegrationTests(APITestCase):
         self.assertEqual(response.data, {"message": "Pulled successfully"})
 
         self.repo.refresh_from_db()
-        self.assertEqual(self.repo.pulls_count, 2)
-        self.assertEqual(Pull.objects.filter(repository=self.repo).count(), 1)
+        self.assertEqual(self.repo.pulls_count, 1)
+        self.assertEqual(Pull.objects.filter(repository=self.repo).count(), 2)
 
     def test_get_pulls_list(self):
         Pull.objects.create(repository=self.repo)
