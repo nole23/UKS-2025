@@ -42,7 +42,7 @@ urlpatterns = [
     path("api/repositories/search/", RepositorySearchView.as_view(), name='repository-search'),
     path("api/docker/info", DockerInfoView.as_view()),
     path("api/repositories/<int:pk>/", RepositoryDetailView.as_view()),
-    path("api/repositories/<int:pk>/star/", StarRepositoryView.as_view()),
+    path("api/repositories/<int:pk>/star/", StarRepositoryView.as_view(), name='star-repository'),
     path("api/repositories/starred/", StarredRepositoriesView.as_view()),
     path("api/repositories/<int:pk>/pull/", PullRepositoryView.as_view(), name="repository-pull"),
     path("api/repositories/<int:pk>/pulls/", PullRepositoryView.as_view(), name="repository-pulls"),

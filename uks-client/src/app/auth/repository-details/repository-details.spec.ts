@@ -3,6 +3,8 @@ import { RepositoryDetails } from './repository-details';
 import { ProjectService } from '../../services/project';
 import { UserService } from '../../services/user';
 import { of, throwError } from 'rxjs';
+import { Router } from '@angular/router';
+
 
 describe('RepositoryDetails', () => {
   let component: RepositoryDetails;
@@ -28,7 +30,9 @@ describe('RepositoryDetails', () => {
       'addTag',
       'editVisibilityRepository',
       'deleteRepository',
-      'updateBadgeRepository'
+      'updateBadgeRepository',
+      'getProjectStars',
+      'actionToStar'
     ]);
 
     userSpy = jasmine.createSpyObj('UserService', [
@@ -37,14 +41,17 @@ describe('RepositoryDetails', () => {
       'isSuperAdmin'
     ]);
 
-    userSpy.getCurrentUser.and.returnValue({ username: 'owner' });
+    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+
+    userSpy.getCurrentUser.and.returnValue({ id: 1, username: 'owner' });
     userSpy.isSuperAdmin.and.returnValue(false);
 
     await TestBed.configureTestingModule({
       imports: [RepositoryDetails],
       providers: [
         { provide: ProjectService, useValue: projectSpy },
-        { provide: UserService, useValue: userSpy }
+        { provide: UserService, useValue: userSpy },
+        { provide: Router, useValue: routerSpy }
       ]
     }).compileComponents();
 
@@ -53,14 +60,18 @@ describe('RepositoryDetails', () => {
     component.repository = mockRepo;
   });
 
+  function mockInitCalls() {
+    projectSpy.getProjectTags.and.returnValue(of([]));
+    projectSpy.getCollaborators.and.returnValue(of([]));
+    projectSpy.getProjectStars.and.returnValue(of([]));
+  }
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
   it('should init and load data', () => {
-    projectSpy.getProjectTags.and.returnValue(of([]));
-    projectSpy.getCollaborators.and.returnValue(of([]));
-
+    mockInitCalls();
     component.ngOnInit();
 
     expect(component.selectedBadge).toBe('NONE');
@@ -133,9 +144,7 @@ describe('RepositoryDetails', () => {
   });
 
   it('should detect owner', () => {
-    projectSpy.getProjectTags.and.returnValue(of([]));
-    projectSpy.getCollaborators.and.returnValue(of([]));
-
+    mockInitCalls();
     component.ngOnInit();
 
     expect(component.isOwner()).toBeTrue();
@@ -209,5 +218,72 @@ describe('RepositoryDetails', () => {
     const num = (component as any).getRandomNumber();
     expect(num).toBeGreaterThanOrEqual(1);
     expect(num).toBeLessThanOrEqual(200);
+  });
+
+  it('should load stars', () => {
+    mockInitCalls();
+    const stars = [{ user_username: 'owner' }];
+    projectSpy.getProjectStars.and.returnValue(of(stars));
+
+    component.ngOnInit();
+
+    expect(component.stars.length).toBe(1);
+  });
+
+  it('should detect if user starred repo', () => {
+    component.stars = [{ user_username: 'owner' }];
+    component.user = { username: 'owner' };
+
+    expect(component.hasAlredyBeenStarredByTheCurrentUser({})).toBeTrue();
+  });
+
+  it('should star repository', () => {
+    component.user = { id: 1, username: 'owner' };
+    component.stars = [];
+
+    projectSpy.actionToStar.and.returnValue(of({ message: 'Starred' }));
+
+    const repo = { id: 1, stars_count: 0, nama: 'repo' };
+
+    component.actionForStar(repo);
+
+    expect(repo.stars_count).toBe(1);
+    expect(component.stars.length).toBe(1);
+  });
+
+  it('should unstar repository', () => {
+    component.user = { id: 1, username: 'owner' };
+    component.stars = [{ user_id: 1 }];
+
+    projectSpy.actionToStar.and.returnValue(of({ message: 'Unstarred' }));
+
+    const repo = { id: 1, stars_count: 1, nama: 'repo' };
+
+    component.actionForStar(repo);
+
+    expect(repo.stars_count).toBe(0);
+    expect(component.stars.length).toBe(0);
+  });
+
+  it('should handle star error', () => {
+    projectSpy.actionToStar.and.returnValue(throwError(() => new Error()));
+
+    component.actionForStar({ id: 1, stars_count: 0 });
+
+    expect(component.modelType).toBe('error');
+  });
+
+  it('should animate loading text', () => {
+    jasmine.clock().install();
+
+    component.loadingTextInterval();
+
+    jasmine.clock().tick(1000);
+    expect(component.loadingText).toBe('Loading.');
+
+    jasmine.clock().tick(1000);
+    expect(component.loadingText).toBe('Loading..');
+
+    jasmine.clock().uninstall();
   });
 });

@@ -183,4 +183,47 @@ describe('ProjectService', () => {
     req.flush({});
   });
 
+  // -------------------------
+  // GET STARS
+  // -------------------------
+  it('should GET project stars', () => {
+    const mockResponse = { count: 5 };
+
+    service.getProjectStars(3).subscribe(res => {
+      expect(res).toEqual(mockResponse);
+    });
+
+    const req = httpMock.expectOne(`${api}repositories/3/star`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.withCredentials).toBeTrue();
+
+    req.flush(mockResponse);
+  });
+
+  // -------------------------
+  // POST STAR
+  // -------------------------
+  it('should POST star when type=true', () => {
+    service.actionToStar(3, true).subscribe();
+
+    const req = httpMock.expectOne(`${api}repositories/3/star/`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.withCredentials).toBeTrue();
+    expect(req.request.body).toEqual({});
+
+    req.flush({});
+  });
+
+  // -------------------------
+  // DELETE STAR
+  // -------------------------
+  it('should DELETE star when type=false', () => {
+    service.actionToStar(3, false).subscribe();
+
+    const req = httpMock.expectOne(`${api}repositories/3/star/`);
+    expect(req.request.method).toBe('DELETE');
+    expect(req.request.withCredentials).toBeTrue();
+
+    req.flush({});
+  });
 });

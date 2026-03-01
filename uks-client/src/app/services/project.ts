@@ -93,4 +93,16 @@ export class ProjectService {
   deleteRepository(repoId: number): Observable<any> {
     return this.http.delete<any>(this.apiUrl + `repositories/${repoId}/`, {withCredentials: true});
   }
+
+  getProjectStars(repoId: number): Observable<any> {
+    return this.http.get<any>(this.apiUrl + `repositories/${repoId}/star`, { withCredentials: true });
+  }
+
+  actionToStar(repoId: number, type: boolean): Observable<any> {
+    if (type) {
+      return this.http.post<any>(this.apiUrl + `repositories/${repoId}/star/`, {}, {withCredentials: true});
+    } else {
+      return this.http.delete<any>(this.apiUrl + `repositories/${repoId}/star/`, {withCredentials: true});
+    }
+  }
 }

@@ -5,10 +5,13 @@ import { ProjectService } from '../../services/project';
 import { UserService } from '../../services/user';
 import { ModalDialogComponent } from '../../helpers/modal-dialog-component/modal-dialog-component';
 import { finalize } from 'rxjs';
+import { TableComponent } from '../../helpers/table-component/table-component';
+import { TableColumn } from '../../helpers/interface/table-column';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-repository-details',
-  imports: [DatePipe, FormsModule, ModalDialogComponent],
+  imports: [DatePipe, FormsModule, ModalDialogComponent, TableComponent],
   templateUrl: './repository-details.html',
   styleUrl: './repository-details.scss',
 })
@@ -19,6 +22,7 @@ export class RepositoryDetails implements OnInit{
   activeTab: string = 'general';
 
   tags: any[] = [];
+  stars: any[] = [];
   lastTag: any = null;
   pulls: any[] = [];
   collaborators: any[] = [];
@@ -41,16 +45,46 @@ export class RepositoryDetails implements OnInit{
 
   isCollaboratorLoading: boolean = false;
   isTagsLoading: boolean = false;
+  isStarLoadin: boolean = false;
+  isLoaderStarAction: boolean = false;
 
   selectedBadge: string | null = null; // inicijalno ništa
 
-  constructor(private repo: ProjectService, public userService: UserService) {}
+  loadingText: string = 'Loading';
+  dots: number = 0;
+
+  tabsColumns: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'digest', label: 'Digest' },
+    { key: 'os_arch', label: 'OS' },
+    { key: 'compressed_size_mb', label: 'Size (MB)' },
+  ]
+
+  tagsColumnsWithoutButton: TableColumn[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'os_arch', label: 'OS' },
+    { key: 'created_at', label: 'Pulled' },
+    { key: 'updated_at', label: 'Pushed' },
+  ]
+
+  starsColumns: TableColumn[] = [
+    { key: 'user_username', label: 'Username' },
+    { key: 'starred_at', label: 'Start' },
+  ];
+  removeUserId: any = null;
+
+  constructor(private repo: ProjectService, public userService: UserService, private router: Router) {}
 
   ngOnInit() {
     this.selectedBadge = this.repository.badge
     this.user = this.userService.getCurrentUser();
     this.loadTags();
+    this.loadStars();
     this.loadCollaborators();
+  }
+
+  viewUser(user_id: string) {
+    this.router.navigate(['user', user_id])
   }
 
   setTab(tab: string) {
@@ -58,6 +92,22 @@ export class RepositoryDetails implements OnInit{
   }
 
   loadTags() {
+    if (this.userService.isSuperAdmin() || this.isOwner()) {
+      this.tabsColumns.push({
+        key: 'actions',
+        label: '',
+        type: 'buttons',
+        buttons: [
+          {
+            icon: 'fa fa-remove',
+            title: 'Remove',
+            class: 'btn-transparent',
+            fn: (row) => this.removeTag(row)
+          }
+        ]
+      })
+    }
+
     this.repo.getProjectTags(this.repository.id)
       .pipe(finalize(() => this.isTagsLoading = true))
       .subscribe({
@@ -70,6 +120,29 @@ export class RepositoryDetails implements OnInit{
           }
         },
         error: () => {
+        }
+      })
+  }
+
+  loadStars() {
+    if (this.userService.isSuperAdmin() || this.isOwner()) {
+      this.starsColumns.push({
+        key: 'actions',
+        label: '',
+        type: 'buttons',
+        buttons: [
+          { icon: 'fa fa-eye', title: 'View', class: 'btn-green mr-1', fn: (user_id: any) => this.viewUser(user_id) },
+        ]
+      })
+    }
+    this.repo.getProjectStars(this.repository.id)
+      .pipe(finalize(() => this.isStarLoadin = true))
+      .subscribe({
+        next: (res: any) => {
+          this.stars = res;
+        },
+        error: () => {
+
         }
       })
   }
@@ -314,6 +387,57 @@ export class RepositoryDetails implements OnInit{
 
   onBadgeChange(event: any) {
     this.selectedBadge = event.target.value;
+  }
+
+  hasAlredyBeenStarredByTheCurrentUser(repository: any) {
+    if (this.stars.length === 0) {
+      return false;
+    }
+
+    return this.stars.some(s => s.user_username === this.user.username);
+  }
+
+  actionForStar(repository: any) {
+    this.isLoaderStarAction = true;
+    this.repo.actionToStar(repository.id, !this.hasAlredyBeenStarredByTheCurrentUser(repository))
+      .pipe(finalize(() => this.isLoaderStarAction = false))
+      .subscribe({
+        next: (res: any) => {
+          if (res.message === 'Starred') {
+            repository.stars_count++;
+            this.stars.push({user_id: this.user.id, user_username: this.user.username, starred_at: Date.now()})
+            this.isOpenModal = true;
+            this.modalMessage = `You have successfully added the repository ${repository.nama} to follow.`;
+            this.modelType = 'success';
+          } else if (res.message === 'Unstarred') {
+            repository.stars_count--;
+            const index = this.stars.findIndex(s => s.user_id === this.user.id);
+            if (index !== -1) {
+              this.stars.splice(index, 1);
+            }
+            this.isOpenModal = true;
+            this.modalMessage = `You have removed repository: {${repository.nama}} from your watchlist.`;
+            this.modelType = 'info';
+          }
+          else {
+            this.isOpenModal = true;
+            this.modalMessage = `You failed to add prioritythin to the list.`;
+            this.modelType = 'error'
+          }
+        },
+        error: () => {
+          this.isOpenModal = true;
+          this.modalMessage = `There was a network problem. Please contact your administrator.`;
+          this.modelType = 'error'
+        }
+      })
+  }
+
+  loadingTextInterval() {
+    setInterval(() => {
+      this.dots = (this.dots + 1) % 4; // 0,1,2,3
+      this.loadingText = 'Loading' + '.'.repeat(this.dots);
+    }, 1000);
   }
 
   private closeModal() {
