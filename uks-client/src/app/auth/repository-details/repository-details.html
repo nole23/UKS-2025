@@ -1,19 +1,39 @@
 <div class="repo-header">
   <div class="repo-actions">
-    @if (repository.last_pushed_at) {
-        <span>Last pushed {{ repository.last_pushed_at | date:'short' }}</span> -
+    @if (isStarLoadin) {
+        @if (repository.last_pushed_at) {
+            <span>Last pushed {{ repository.last_pushed_at | date:'short' }}</span> -
+        }
+        @else {
+            @if (lastTag) {
+                <span>Last pushed {{ lastTag.updated_at | date:'short' }}</span> -
+            }
+        }
+        <span>Pull ({{repository.pulls_count}}) <button>Simulation Push</button></span>
+        <span>
+            Star ({{repository.stars_count}}) 
+            <Button (click)="actionForStar(repository)" [disabled]="repository.owner_username === user.username">
+                @if (!isLoaderStarAction) {
+                    @if (!hasAlredyBeenStarredByTheCurrentUser(repository)) {
+                        <span>Add to star</span>
+                    }
+                    @else {
+                        <span>Remove to star</span>
+                    }
+                }
+                @else {
+                    <span class="spinner"></span>
+                }
+            </Button>
+        </span>
     }
     @else {
-        @if (lastTag) {
-            <span>Last pushed {{ lastTag.updated_at | date:'short' }}</span> -
-        }
+        <span>{{loadingTextInterval()}}</span>
     }
-    <span>Pull ({{repository.pulls_count}})</span> -
-    <span >Star ({{repository.stars_count}})</span>
   </div>
 </div>
 
-@if (isTagsLoading && isCollaboratorLoading) {
+@if (isTagsLoading && isCollaboratorLoading && isStarLoadin) {
     <!-- TABS -->
     <div class="tabs">
         <div class="tab"
@@ -26,6 +46,10 @@
 
         @if (userService.isSuperAdmin() || isOwner()) {
             <div class="tab"
+                [class.active]="activeTab==='stars'"
+                (click)="setTab('stars')">Stars</div>
+                
+            <div class="tab"
                 [class.active]="activeTab==='collaborators'"
                 (click)="setTab('collaborators')">Collaborators</div>
             
@@ -37,80 +61,52 @@
 
     <!-- TAB CONTENT -->
     @if (activeTab === 'general') {
-    <div class="tab-content">
-        <div>
+        <div class="tab-content">
             <div>
-                <h3>Tags</h3>
-                <p>This repository contains 1 tag(s).</p>
+                <div>
+                    <h3>Tags</h3>
+                    <p>This repository contains 1 tag(s).</p>
+                </div>
+                <app-table-component
+                    [columns]="tagsColumnsWithoutButton"
+                    [data]="tags">
+                </app-table-component>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <td>Tag</td>
-                        <td>Os</td>
-                        <td>Type</td>
-                        <td>Pulled</td>
-                        <td>Pushed</td>
-                    </tr>
-                </thead>
-                <tbody>
-                    @for (tag of tags; track tag) {
-                        <tr>
-                            <td>{{tag.name}}</td>
-                            <td>{{tag.os_arch}}</td>
-                            <td>Image</td>
-                            <td>{{tag.created_at | date:'short'}}</td>
-                            <td>{{tag.updated_at | date:'short'}}</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-        <div>
-            <h1>build cloud</h1>
-            <p>Build with</p>
-            <h3>Docker Build Cloud</h3>
+            <div>
+                <h1>build cloud</h1>
+                <p>Build with</p>
+                <h3>Docker Build Cloud</h3>
 
-            <div>
-                Accelerate image build times with access to cloud-based builders and shared cache.
-            </div>
-            <div>
-                Docker Build Cloud executes builds on optimally-dimensioned cloud infrastructure with dedicated per-organization isolation
-            </div>
-            <div>
-                Get faster builds through shared caching across your team, native multi-platform support, and encrypted data transfer - all without managing infrastructure.
+                <div>
+                    Accelerate image build times with access to cloud-based builders and shared cache.
+                </div>
+                <div>
+                    Docker Build Cloud executes builds on optimally-dimensioned cloud infrastructure with dedicated per-organization isolation
+                </div>
+                <div>
+                    Get faster builds through shared caching across your team, native multi-platform support, and encrypted data transfer - all without managing infrastructure.
+                </div>
             </div>
         </div>
-    </div>
     }
 
     @if (activeTab === 'tags') {
-    <table class="simple-table">
-        <tr>
-        <th>Name</th>
-        <th>Digest</th>
-        <th>OS</th>
-        <th>Size (MB)</th>
+
+        <app-table-component
+            [columns]="tabsColumns"
+            [data]="tags">
+        </app-table-component>
+        <br>
         @if (userService.isSuperAdmin() || isOwner()) {
-            <th></th>
+            <button (click)="addTag()">Add Tag</button>
         }
-        </tr>
-        @for (tag of tags; track tag) {
-        <tr>
-            <td>{{ tag.name }}</td>
-            <td>{{ tag.digest }}</td>
-            <td>{{ tag.os_arch }}</td>
-            <td>{{ tag.compressed_size_mb }}</td>
-            @if (userService.isSuperAdmin() || isOwner()) {
-                <th><button (click)="removeTag(tag)">Remove</button></th>
-            }
-        </tr>
-        }
-    </table>
-    <br>
-    @if (userService.isSuperAdmin() || isOwner()) {
-        <button (click)="addTag()">Add Tag</button>
     }
+
+    @if (activeTab === 'stars') {
+        <app-table-component
+            [columns]="starsColumns"
+            [data]="stars">
+        </app-table-component>
     }
 
     @if (activeTab === 'collaborators') {
